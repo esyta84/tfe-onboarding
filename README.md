@@ -72,8 +72,48 @@ There are two ways to onboard a new team:
 
 #### Manual Method
 1. Create a new directory under `teams/` with the team name
-2. Create the necessary configuration files (see example in `teams/example-team/`)
+2. Create the necessary configuration files (see example in `teams/app-x/`)
 3. Run Terraform to apply the changes
+
+#### Example: App-X Team Structure
+
+We've included a complete example of team configuration for `app-x` that demonstrates the recommended folder structure:
+
+```
+teams/app-x/
+├── README.md                     # Team-specific documentation
+├── main.tf                       # Main configuration that uses the root module
+├── variables.tf                  # Variable declarations for team config
+├── outputs.tf                    # Team-specific outputs
+├── team.tfvars                   # Team-specific variable values
+├── workspaces/                   # Environment-specific workspaces
+│   ├── dev/                      # Development environment
+│   │   ├── main.tf               # Dev-specific resources
+│   │   ├── variables.tf          # Dev-specific variables
+│   │   └── outputs.tf            # Dev-specific outputs
+│   ├── preprod/                  # Similar structure for pre-production
+│   └── prod/                     # Similar structure for production
+└── platform-config/              # Platform-specific configurations
+    ├── aws.tf                    # AWS-specific resources
+    ├── azure.tf                  # Azure-specific resources
+    └── vsphere.tf                # vSphere-specific resources
+```
+
+To use this example, copy the structure for your new team:
+
+```bash
+# Copy the example team structure
+cp -r teams/app-x teams/your-new-team
+
+# Update the team-specific configurations
+# Edit teams/your-new-team/team.tfvars with your team details
+
+# Apply the configuration
+cd teams/your-new-team
+terraform init
+terraform plan -var-file="team.tfvars"
+terraform apply -var-file="team.tfvars"
+```
 
 #### Automated Method Using Azure DevOps Pipeline
 1. Use the Azure DevOps team onboarding pipeline (`ci/azure-devops/azure-pipelines-team-onboarding.yml`)
