@@ -1,0 +1,168 @@
+# Global TFE Configuration
+tfe_hostname     = "app.terraform.io"
+# tfe_token      = "YOUR_TFE_TOKEN" # Never store sensitive values in version control
+tfe_organization = "your-organization-name"
+
+# Admin Team Configuration
+admin_team = {
+  name        = "platform-admins"
+  description = "Team responsible for managing TFE platform"
+  admins      = ["admin1@example.com", "admin2@example.com"]
+  members     = ["member1@example.com", "member2@example.com"]
+}
+
+# Teams to be onboarded
+teams = {
+  "engineering" = {
+    name        = "engineering"
+    description = "Engineering team workspaces"
+    email       = "engineering@example.com"
+    cost_code   = "CC-ENG-123"
+    platforms   = ["vsphere", "aws"]
+    environments = ["dev", "preprod", "prod"]
+    admins      = ["lead@example.com"]
+    members     = ["dev1@example.com", "dev2@example.com"]
+  },
+  "finance" = {
+    name        = "finance"
+    description = "Finance team workspaces"
+    email       = "finance@example.com"
+    cost_code   = "CC-FIN-456"
+    platforms   = ["azure"]
+    environments = ["dev", "prod"] # This team only needs dev and prod
+    admins      = ["finance-lead@example.com"]
+    members     = ["finance-user1@example.com", "finance-user2@example.com"]
+  }
+}
+
+# Platform Configuration
+vsphere_config = {
+  enabled     = true
+  datacenter  = "dc-01"
+  cluster     = "cluster-01"
+  datastore   = "datastore-01"
+  network     = "network-01"
+  folder_path = "/vm/terraform-managed"
+}
+
+aws_config = {
+  enabled     = true
+  region      = "us-west-2"
+  account_id  = "123456789012"
+  vpc_id      = "vpc-0123456789abcdef0"
+  subnet_ids  = ["subnet-0123456789abcdef0", "subnet-0123456789abcdef1"]
+}
+
+azure_config = {
+  enabled         = true
+  subscription_id = "00000000-0000-0000-0000-000000000000"
+  resource_group  = "terraform-resources"
+  location        = "eastus"
+  virtual_network = "terraform-vnet"
+  subnet_id       = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/terraform-resources/providers/Microsoft.Network/virtualNetworks/terraform-vnet/subnets/default"
+}
+
+# Custom Environment Configurations (optional, defaults will be used if not specified)
+environment_configs = {
+  dev = {
+    auto_apply                = true
+    terraform_version         = "1.6.0"
+    execution_mode            = "remote"
+    terraform_working_dir     = ""
+    speculative_enabled       = true
+    allow_destroy_plan        = true
+    file_triggers_enabled     = true
+    trigger_prefixes          = []
+    queue_all_runs            = false
+    assessments_enabled       = false
+    global_remote_state       = false
+    run_operation_timeout     = 30
+    workspace_name_prefix     = "dev-"
+  },
+  preprod = {
+    auto_apply                = false
+    terraform_version         = "1.6.0"
+    execution_mode            = "remote"
+    terraform_working_dir     = ""
+    speculative_enabled       = true
+    allow_destroy_plan        = false
+    file_triggers_enabled     = true
+    trigger_prefixes          = []
+    queue_all_runs            = true
+    assessments_enabled       = true
+    global_remote_state       = true
+    run_operation_timeout     = 60
+    workspace_name_prefix     = "preprod-"
+  },
+  prod = {
+    auto_apply                = false
+    terraform_version         = "1.6.0"
+    execution_mode            = "remote"
+    terraform_working_dir     = ""
+    speculative_enabled       = true
+    allow_destroy_plan        = false
+    file_triggers_enabled     = true
+    trigger_prefixes          = []
+    queue_all_runs            = true
+    assessments_enabled       = true
+    global_remote_state       = true
+    run_operation_timeout     = 120
+    workspace_name_prefix     = "prod-"
+  }
+}
+
+###################################################
+# SSO Integration Configuration
+###################################################
+
+# Enable team management via SAML assertions
+enable_sso_team_management = true
+
+# SAML attribute containing team membership information
+sso_team_membership_attribute = "MemberOf"
+
+# SSO Provider Configuration (choose one)
+sso_configuration = {
+  provider_type = "azure_ad"  # Options: "none", "okta", "azure_ad", "keycloak", "keycloak_redhat", "generic_saml"
+  
+  # Azure AD Configuration
+  azure_ad_metadata_url = "https://login.microsoftonline.com/tenant-id/federationmetadata/2007-06/federationmetadata.xml"
+  
+  # Uncomment for Okta Configuration
+  # provider_type = "okta"
+  # okta_metadata_url = "https://your-okta-domain.okta.com/app/your-app-id/sso/saml/metadata"
+  
+  # Uncomment for Keycloak Configuration
+  # provider_type = "keycloak"
+  # keycloak_metadata_url = "https://keycloak.example.com/auth/realms/master/protocol/saml/descriptor"
+  # keycloak_client_id = "terraform-enterprise"
+  # keycloak_realm = "master"
+  
+  # Uncomment for Red Hat build of Keycloak Configuration
+  # provider_type = "keycloak_redhat"
+  # keycloak_redhat_metadata_url = "https://sso.example.com/auth/realms/master/protocol/saml/descriptor"
+  # keycloak_redhat_client_id = "terraform-enterprise"
+  # keycloak_redhat_realm = "master"
+  
+  # Uncomment for Generic SAML Configuration
+  # provider_type = "generic_saml"
+  # saml_idp_metadata = "<?xml version=\"1.0\"?>...full metadata XML content..."
+  # saml_sso_url = "https://your-idp.example.com/sso/saml"
+  # saml_certificate = "-----BEGIN CERTIFICATE-----\n...certificate content...\n-----END CERTIFICATE-----"
+}
+
+# Map Identity Provider Groups/Roles to TFE teams
+sso_team_mappings = {
+  admins = {
+    name = "Administrators"
+    sso_team_id = "00000000-0000-0000-0000-000000000001"  # ID/UUID (AD Group, Keycloak Role, etc.)
+  },
+  developers = {
+    name = "Developers"
+    sso_team_id = "00000000-0000-0000-0000-000000000002"  # ID/UUID (AD Group, Keycloak Role, etc.)
+  },
+  operators = {
+    name = "Operators"
+    sso_team_id = "00000000-0000-0000-0000-000000000003"  # ID/UUID (AD Group, Keycloak Role, etc.)
+  }
+} 

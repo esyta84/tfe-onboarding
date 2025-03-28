@@ -1,0 +1,177 @@
+trigger: none # Manual triggers only
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+parameters:
+  - name: teamName
+    displayName: 'Team Name'
+    type: string
+    default: ''
+  - name: teamDescription
+    displayName: 'Team Description'
+    type: string
+    default: ''
+  - name: teamEmail
+    displayName: 'Team Email'
+    type: string
+    default: ''
+  - name: costCode
+    displayName: 'Cost Code'
+    type: string
+    default: ''
+  - name: platforms
+    displayName: 'Platforms'
+    type: string
+    default: 'vsphere,aws,azure'
+  - name: environments
+    displayName: 'Environments'
+    type: string
+    default: 'dev,preprod,prod'
+  - name: teamAdmins
+    displayName: 'Team Admins (comma-separated emails)'
+    type: string
+    default: ''
+  - name: teamMembers
+    displayName: 'Team Members (comma-separated emails)'
+    type: string
+    default: ''
+  - name: targetEnvironment
+    displayName: 'Target Environment'
+    type: string
+    default: 'dev'
+    values:
+    - dev
+    - preprod
+    - prod
+
+variables:
+  - name: terraform_version
+    value: '1.6.0'
+  - name: tfe_hostname
+    value: 'app.terraform.io'
+  - group: tfe-variables # Variable group containing sensitive values like TFE_TOKEN
+
+stages:
+- stage: GenerateConfig
+  displayName: 'Generate Team Configuration'
+  jobs:
+  - job: CreateTeamVars
+    displayName: 'Create Team Variables File'
+    steps:
+    - bash: |
+        # Create temporary team variables file
+        cat > team.tfvars << EOF
+        teams = {
+          "${{ parameters.teamName }}" = {
+            name        = "${{ parameters.teamName }}"
+            description = "${{ parameters.teamDescription }}"
+            email       = "${{ parameters.teamEmail }}"
+            cost_code   = "${{ parameters.costCode }}"
+            platforms   = [$(echo "${{ parameters.platforms }}" | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')]
+            environments = [$(echo "${{ parameters.environments }}" | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')]
+            admins      = [$(echo "${{ parameters.teamAdmins }}" | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')]
+            members     = [$(echo "${{ parameters.teamMembers }}" | sed 's/,/","/g' | sed 's/^/"/' | sed 's/$/"/')]
+          }
+        }
+        EOF
+      displayName: 'Generate Team Variables File'
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Team Variables File'
+      inputs:
+        pathToPublish: 'team.tfvars'
+        artifactName: 'team-config'
+
+- stage: ValidateAndPlan
+  displayName: 'Validate and Plan Team Onboarding'
+  dependsOn: GenerateConfig
+  jobs:
+  - job: TerraformPlan
+    displayName: 'Generate Terraform Plan for Team Onboarding'
+    steps:
+    - task: DownloadBuildArtifacts@1
+      displayName: 'Download Team Variables File'
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'team-config'
+        downloadPath: '$(System.DefaultWorkingDirectory)'
+
+    - task: TerraformInstaller@1
+      displayName: 'Install Terraform $(terraform_version)'
+      inputs:
+        terraformVersion: '$(terraform_version)'
+
+    - task: TerraformCLI@1
+      displayName: 'terraform init'
+      inputs:
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+        backendType: 'azurerm'
+        backendServiceArm: 'TFEServiceConnection'
+        ensureBackend: true
+        backendAzureRmResourceGroupName: 'tfstate'
+        backendAzureRmStorageAccountName: 'tfstate$(Build.DefinitionName)'
+        backendAzureRmContainerName: 'terraform-state'
+        backendAzureRmKey: 'tfe-onboarding-team-${{ parameters.teamName }}.tfstate'
+
+    - task: TerraformCLI@1
+      displayName: 'terraform plan'
+      inputs:
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+        environmentServiceNameAzureRM: 'TFEServiceConnection'
+        publishPlanResults: 'TerraformPlan'
+        commandOptions: '-var "tfe_hostname=$(tfe_hostname)" -var "tfe_token=$(tfe_token)" -var "tfe_organization=$(tfe_organization)" -var-file="$(System.DefaultWorkingDirectory)/team-config/team.tfvars" -var-file="environments/${{ parameters.targetEnvironment }}.tfvars" -out=$(Build.ArtifactStagingDirectory)/terraform.tfplan'
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish Terraform Plan'
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'terraform-plan'
+
+- stage: ApplyTeam
+  displayName: 'Apply Team Onboarding'
+  dependsOn: ValidateAndPlan
+  jobs:
+  - deployment: ApplyTerraform
+    displayName: 'Apply Team Configuration'
+    environment: ${{ parameters.targetEnvironment }}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadBuildArtifacts@1
+            displayName: 'Download Team Variables File'
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              artifactName: 'team-config'
+              downloadPath: '$(System.DefaultWorkingDirectory)'
+
+          - task: TerraformInstaller@1
+            displayName: 'Install Terraform $(terraform_version)'
+            inputs:
+              terraformVersion: '$(terraform_version)'
+
+          - task: TerraformCLI@1
+            displayName: 'terraform init'
+            inputs:
+              command: 'init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              backendType: 'azurerm'
+              backendServiceArm: 'TFEServiceConnection'
+              ensureBackend: true
+              backendAzureRmResourceGroupName: 'tfstate'
+              backendAzureRmStorageAccountName: 'tfstate$(Build.DefinitionName)'
+              backendAzureRmContainerName: 'terraform-state'
+              backendAzureRmKey: 'tfe-onboarding-team-${{ parameters.teamName }}.tfstate'
+
+          - task: TerraformCLI@1
+            displayName: 'terraform apply'
+            inputs:
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              environmentServiceNameAzureRM: 'TFEServiceConnection'
+              commandOptions: '-var "tfe_hostname=$(tfe_hostname)" -var "tfe_token=$(tfe_token)" -var "tfe_organization=$(tfe_organization)" -var-file="$(System.DefaultWorkingDirectory)/team-config/team.tfvars" -var-file="environments/${{ parameters.targetEnvironment }}.tfvars" -auto-approve' 

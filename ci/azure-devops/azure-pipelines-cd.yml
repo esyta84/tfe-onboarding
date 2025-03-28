@@ -1,0 +1,122 @@
+trigger: none # Manual triggers only
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  - name: terraform_version
+    value: '1.6.0'
+  - name: tfe_hostname
+    value: 'app.terraform.io'
+  - group: tfe-variables # Variable group containing sensitive values like TFE_TOKEN
+
+stages:
+- stage: ApplyDev
+  displayName: 'Apply to Dev Environment'
+  jobs:
+  - deployment: ApplyTerraform
+    displayName: 'Apply Terraform Changes to Dev'
+    environment: 'dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: TerraformInstaller@1
+            displayName: 'Install Terraform $(terraform_version)'
+            inputs:
+              terraformVersion: '$(terraform_version)'
+
+          - task: TerraformCLI@1
+            displayName: 'terraform init'
+            inputs:
+              command: 'init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              backendType: 'azurerm'
+              backendServiceArm: 'TFEServiceConnection'
+              ensureBackend: true
+              backendAzureRmResourceGroupName: 'tfstate'
+              backendAzureRmStorageAccountName: 'tfstate$(Build.DefinitionName)'
+              backendAzureRmContainerName: 'terraform-state'
+              backendAzureRmKey: 'tfe-onboarding-dev.tfstate'
+
+          - task: TerraformCLI@1
+            displayName: 'terraform apply'
+            inputs:
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              environmentServiceNameAzureRM: 'TFEServiceConnection'
+              commandOptions: '-var "tfe_hostname=$(tfe_hostname)" -var "tfe_token=$(tfe_token)" -var "tfe_organization=$(tfe_organization)" -var-file="environments/dev.tfvars" -auto-approve'
+
+- stage: ApplyPreprod
+  displayName: 'Apply to Preprod Environment'
+  dependsOn: ApplyDev
+  jobs:
+  - deployment: ApplyTerraform
+    displayName: 'Apply Terraform Changes to Preprod'
+    environment: 'preprod'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: TerraformInstaller@1
+            displayName: 'Install Terraform $(terraform_version)'
+            inputs:
+              terraformVersion: '$(terraform_version)'
+
+          - task: TerraformCLI@1
+            displayName: 'terraform init'
+            inputs:
+              command: 'init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              backendType: 'azurerm'
+              backendServiceArm: 'TFEServiceConnection'
+              ensureBackend: true
+              backendAzureRmResourceGroupName: 'tfstate'
+              backendAzureRmStorageAccountName: 'tfstate$(Build.DefinitionName)'
+              backendAzureRmContainerName: 'terraform-state'
+              backendAzureRmKey: 'tfe-onboarding-preprod.tfstate'
+
+          - task: TerraformCLI@1
+            displayName: 'terraform apply'
+            inputs:
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              environmentServiceNameAzureRM: 'TFEServiceConnection'
+              commandOptions: '-var "tfe_hostname=$(tfe_hostname)" -var "tfe_token=$(tfe_token)" -var "tfe_organization=$(tfe_organization)" -var-file="environments/preprod.tfvars" -auto-approve'
+
+- stage: ApplyProd
+  displayName: 'Apply to Production Environment'
+  dependsOn: ApplyPreprod
+  jobs:
+  - deployment: ApplyTerraform
+    displayName: 'Apply Terraform Changes to Production'
+    environment: 'prod'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: TerraformInstaller@1
+            displayName: 'Install Terraform $(terraform_version)'
+            inputs:
+              terraformVersion: '$(terraform_version)'
+
+          - task: TerraformCLI@1
+            displayName: 'terraform init'
+            inputs:
+              command: 'init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              backendType: 'azurerm'
+              backendServiceArm: 'TFEServiceConnection'
+              ensureBackend: true
+              backendAzureRmResourceGroupName: 'tfstate'
+              backendAzureRmStorageAccountName: 'tfstate$(Build.DefinitionName)'
+              backendAzureRmContainerName: 'terraform-state'
+              backendAzureRmKey: 'tfe-onboarding-prod.tfstate'
+
+          - task: TerraformCLI@1
+            displayName: 'terraform apply'
+            inputs:
+              command: 'apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)'
+              environmentServiceNameAzureRM: 'TFEServiceConnection'
+              commandOptions: '-var "tfe_hostname=$(tfe_hostname)" -var "tfe_token=$(tfe_token)" -var "tfe_organization=$(tfe_organization)" -var-file="environments/prod.tfvars" -auto-approve' 

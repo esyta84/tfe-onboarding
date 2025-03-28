@@ -1,0 +1,88 @@
+###################################################
+# Team Projects
+###################################################
+
+# Create a project for each environment (dev, preprod, prod)
+resource "tfe_project" "team_projects" {
+  for_each = toset(var.environments)
+  
+  name         = "${var.team_config.name}-${each.value}"
+  organization = var.organization
+  description  = "${var.team_config.name} ${each.value} environment"
+}
+
+###################################################
+# Team Variable Sets
+###################################################
+
+# Create a team-specific variable set for common variables (cost code, etc.)
+resource "tfe_variable_set" "team_variables" {
+  name         = "${var.team_config.name}-team-variables"
+  description  = "Team-specific variables for ${var.team_config.name}"
+  organization = var.organization
+  global       = false
+}
+
+# Associate the team variable set with each project
+resource "tfe_project_variable_set" "team_varset_association" {
+  for_each = toset(var.environments)
+  
+  variable_set_id = tfe_variable_set.team_variables.id
+  project_id      = tfe_project.team_projects[each.value].id
+}
+
+# Add team-specific variables to the variable set
+resource "tfe_variable" "cost_code" {
+  key             = "cost_code"
+  value           = var.team_config.cost_code
+  category        = "terraform"
+  description     = "Team cost code for resource tagging"
+  variable_set_id = tfe_variable_set.team_variables.id
+  sensitive       = false
+}
+
+resource "tfe_variable" "team_email" {
+  key             = "team_email"
+  value           = var.team_config.email
+  category        = "terraform"
+  description     = "Team contact email"
+  variable_set_id = tfe_variable_set.team_variables.id
+  sensitive       = false
+}
+
+resource "tfe_variable" "team_name" {
+  key             = "team_name"
+  value           = var.team_config.name
+  category        = "terraform"
+  description     = "Team name for resource tagging"
+  variable_set_id = tfe_variable_set.team_variables.id
+  sensitive       = false
+}
+
+###################################################
+# Platform Variable Set Associations
+###################################################
+
+# Associate the vSphere variable set with relevant projects if vSphere is enabled
+resource "tfe_project_variable_set" "vsphere_varset_association" {
+  for_each = contains(var.platforms, "vsphere") && var.platform_varset_ids.vsphere != null ? toset(var.environments) : []
+  
+  variable_set_id = var.platform_varset_ids.vsphere
+  project_id      = tfe_project.team_projects[each.value].id
+}
+
+# Associate the AWS variable set with relevant projects if AWS is enabled
+resource "tfe_project_variable_set" "aws_varset_association" {
+  for_each = contains(var.platforms, "aws") && var.platform_varset_ids.aws != null ? toset(var.environments) : []
+  
+  variable_set_id = var.platform_varset_ids.aws
+  project_id      = tfe_project.team_projects[each.value].id
+}
+
+# Associate the Azure variable set with relevant projects if Azure is enabled
+resource "tfe_project_variable_set" "azure_varset_association" {
+  for_each = contains(var.platforms, "azure") && var.platform_varset_ids.azure != null ? toset(var.environments) : []
+  
+  variable_set_id = var.platform_varset_ids.azure
+  project_id      = tfe_project.team_projects[each.value].id
+} 
