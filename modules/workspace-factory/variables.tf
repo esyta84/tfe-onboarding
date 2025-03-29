@@ -51,9 +51,27 @@ variable "environment_configs" {
 }
 
 variable "team_variables" {
-  description = "Map of team-specific variables to be set at workspace level"
+  description = "Map of team-specific variables to be set on workspaces"
   type        = map(string)
   default     = {}
+}
+
+variable "aws_team_config" {
+  description = "Team-specific AWS configuration per environment that overrides the global AWS config"
+  type        = map(any)
+  default     = null
+}
+
+variable "azure_team_config" {
+  description = "Team-specific Azure configuration per environment that overrides the global Azure config"
+  type        = map(any)
+  default     = null
+}
+
+variable "vsphere_team_config" {
+  description = "Team-specific vSphere configuration per environment that overrides the global vSphere config"
+  type        = map(any)
+  default     = null
 }
 
 variable "platform_workspace_count" {

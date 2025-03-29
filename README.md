@@ -225,3 +225,85 @@ For more details, see the [SSO Integration Module README](./modules/sso-integrat
 - Regularly update and test the codebase
 - Follow the recommended workflow for state management
 - Use CI/CD pipelines for automated validation and deployment
+
+## Environment-Specific Platform Configurations
+
+This automation now supports per-environment platform configurations for each team. This means:
+
+- Different AWS accounts for dev, preprod, and prod
+- Different Azure subscriptions for each environment
+- Environment-specific vSphere resources (clusters, datastores, networks)
+
+See [Environment-Specific Platform Configurations](docs/per-environment-configs.md) for detailed documentation.
+
+## Per-Environment Platform Configurations
+
+The onboarding automation supports environment-specific platform configurations for all supported cloud providers (AWS, Azure, and vSphere). This allows teams to use different settings for each environment, such as:
+
+### AWS Configuration
+- Different AWS accounts per environment
+- Environment-specific VPCs and subnets
+- Environment-specific AWS regions
+
+### Azure Configuration
+- Different Azure subscriptions per environment
+- Environment-specific resource groups
+- Environment-specific virtual networks and subnets
+
+### vSphere Configuration
+- Different vCenter servers per environment
+- Environment-specific datacenter and cluster configurations
+- Environment-specific networking and storage options
+
+Example in `team.tfvars`:
+
+```hcl
+team_config = {
+  # Team information
+  name        = "example-team"
+  email       = "team@example.com"
+  # ...
+
+  # AWS per-environment configuration
+  aws_config = {
+    dev = {
+      region     = "us-west-2"
+      account_id = "111111111111"
+      # other environment-specific settings
+    }
+    prod = {
+      region     = "us-east-1"
+      account_id = "222222222222"
+      # other environment-specific settings
+    }
+  }
+
+  # Azure per-environment configuration
+  azure_config = {
+    dev = {
+      location       = "eastus"
+      subscription_id = "11111111-1111-1111-1111-111111111111"
+      # other environment-specific settings
+    }
+    prod = {
+      location       = "westus2"
+      subscription_id = "22222222-2222-2222-2222-222222222222"
+      # other environment-specific settings
+    }
+  }
+
+  # vSphere per-environment configuration
+  vsphere_config = {
+    dev = {
+      vsphere_server  = "vcenter-dev.example.com"
+      datacenter      = "DC-DEV"
+      # other environment-specific settings
+    }
+    prod = {
+      vsphere_server  = "vcenter-prod.example.com"
+      datacenter      = "DC-PROD"
+      # other environment-specific settings
+    }
+  }
+}
+```

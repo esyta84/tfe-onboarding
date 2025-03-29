@@ -63,7 +63,7 @@ module "platform_varsets" {
   organization   = var.tfe_organization
   
   vsphere_config = var.vsphere_config
-  aws_config     = var.aws_config
+  aws_config     = var.aws_config  # This is now just the global default config
   azure_config   = var.azure_config
 }
 
@@ -91,6 +91,11 @@ module "team_onboarding" {
     aws     = contains(each.value.platforms, "aws") ? module.platform_varsets.aws_varset_id : null
     azure   = contains(each.value.platforms, "azure") ? module.platform_varsets.azure_varset_id : null
   }
+  
+  # Pass team-specific platform configurations per environment
+  aws_team_config    = lookup(each.value, "aws_config", null)
+  azure_team_config  = lookup(each.value, "azure_config", null)
+  vsphere_team_config = lookup(each.value, "vsphere_config", null)
   
   # Dependencies to ensure correct order of creation
   depends_on = [
@@ -121,6 +126,11 @@ module "workspace_creation" {
     cost_code = each.value.cost_code
     team_email = each.value.email
   }
+  
+  # Pass team-specific platform configurations
+  aws_team_config     = lookup(each.value, "aws_config", null)
+  azure_team_config   = lookup(each.value, "azure_config", null)
+  vsphere_team_config = lookup(each.value, "vsphere_config", null)
   
   # Dependencies to ensure projects are created first
   depends_on = [

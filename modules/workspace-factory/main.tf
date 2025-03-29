@@ -18,6 +18,43 @@ locals {
     for combo in local.env_platform_combos : 
     "${combo.env}-${combo.platform}" => combo
   }
+
+  # Create a map of workspaces for easier lookup
+  workspaces = tfe_workspace.workspaces
+
+  # Use team-specific per-environment AWS configs if available
+  effective_aws_configs = var.aws_team_config != null ? var.aws_team_config : {
+    for env in var.environments : env => {
+      region     = "ap-southeast-2" # Default to AP Southeast 2 if no team or global config
+      account_id = null
+      vpc_id     = null
+      subnet_ids = []
+    }
+  }
+  
+  # Use team-specific per-environment Azure configs if available
+  effective_azure_configs = var.azure_team_config != null ? var.azure_team_config : {
+    for env in var.environments : env => {
+      location       = "australiaeast" # Default to Australia East if no team or global config
+      subscription_id = null
+      resource_group = null
+      vnet_name      = null
+      subnet_names   = []
+    }
+  }
+  
+  # Use team-specific per-environment vSphere configs if available
+  effective_vsphere_configs = var.vsphere_team_config != null ? var.vsphere_team_config : {
+    for env in var.environments : env => {
+      vsphere_server     = null
+      datacenter         = null
+      compute_cluster    = null
+      datastore          = null
+      resource_pool      = null
+      folder             = null
+      network            = null
+    }
+  }
 }
 
 ###################################################
@@ -114,4 +151,123 @@ resource "tfe_workspace_variable" "operation_timeout" {
   category     = "terraform"
   description  = "Operation timeout in minutes"
   sensitive    = false
+}
+
+###################################################
+# Platform-Specific Variables
+###################################################
+
+# Set AWS-specific variables using the effective AWS config per environment
+resource "tfe_variable" "aws_region" {
+  for_each = {
+    for key, combo in local.env_platform_map :
+    key => combo
+    if contains(var.platforms, "aws") && combo.platform == "aws" && lookup(local.effective_aws_configs, combo.env, null) != null
+  }
+  
+  workspace_id = tfe_workspace.workspaces[each.key].id
+  key          = "AWS_REGION"
+  value        = lookup(lookup(local.effective_aws_configs, each.value.env, {}), "region", "ap-southeast-2")
+  category     = "env"
+  description  = "AWS region for resources in ${each.value.env} environment"
+}
+
+resource "tfe_variable" "aws_account_id" {
+  for_each = {
+    for key, combo in local.env_platform_map :
+    key => combo
+    if contains(var.platforms, "aws") && combo.platform == "aws" && lookup(local.effective_aws_configs, combo.env, null) != null
+  }
+  
+  workspace_id = tfe_workspace.workspaces[each.key].id
+  key          = "TF_VAR_aws_account_id"
+  value        = lookup(lookup(local.effective_aws_configs, each.value.env, {}), "account_id", "")
+  category     = "env"
+  description  = "AWS account ID for ${each.value.env} environment"
+}
+
+# Set Azure-specific variables using the effective Azure config per environment
+resource "tfe_variable" "azure_location" {
+  for_each = {
+    for key, combo in local.env_platform_map :
+    key => combo
+    if contains(var.platforms, "azure") && combo.platform == "azure" && lookup(local.effective_azure_configs, combo.env, null) != null
+  }
+  
+  workspace_id = tfe_workspace.workspaces[each.key].id
+  key          = "ARM_LOCATION"
+  value        = lookup(lookup(local.effective_azure_configs, each.value.env, {}), "location", "australiaeast")
+  category     = "env"
+  description  = "Azure location for resources in ${each.value.env} environment"
+}
+
+resource "tfe_variable" "azure_subscription_id" {
+  for_each = {
+    for key, combo in local.env_platform_map :
+    key => combo
+    if contains(var.platforms, "azure") && combo.platform == "azure" && lookup(local.effective_azure_configs, combo.env, null) != null
+  }
+  
+  workspace_id = tfe_workspace.workspaces[each.key].id
+  key          = "ARM_SUBSCRIPTION_ID"
+  value        = lookup(lookup(local.effective_azure_configs, each.value.env, {}), "subscription_id", "")
+  category     = "env"
+  description  = "Azure subscription ID for ${each.value.env} environment"
+}
+
+resource "tfe_variable" "azure_resource_group" {
+  for_each = {
+    for key, combo in local.env_platform_map :
+    key => combo
+    if contains(var.platforms, "azure") && combo.platform == "azure" && lookup(local.effective_azure_configs, combo.env, null) != null
+  }
+  
+  workspace_id = tfe_workspace.workspaces[each.key].id
+  key          = "TF_VAR_azure_resource_group"
+  value        = lookup(lookup(local.effective_azure_configs, each.value.env, {}), "resource_group", "")
+  category     = "env"
+  description  = "Azure resource group for ${each.value.env} environment"
+}
+
+# Set vSphere-specific variables using the effective vSphere config per environment
+resource "tfe_variable" "vsphere_server" {
+  for_each = {
+    for key, combo in local.env_platform_map :
+    key => combo
+    if contains(var.platforms, "vsphere") && combo.platform == "vsphere" && lookup(local.effective_vsphere_configs, combo.env, null) != null
+  }
+  
+  workspace_id = tfe_workspace.workspaces[each.key].id
+  key          = "VSPHERE_SERVER"
+  value        = lookup(lookup(local.effective_vsphere_configs, each.value.env, {}), "vsphere_server", "")
+  category     = "env"
+  description  = "vSphere server for ${each.value.env} environment"
+}
+
+resource "tfe_variable" "vsphere_datacenter" {
+  for_each = {
+    for key, combo in local.env_platform_map :
+    key => combo
+    if contains(var.platforms, "vsphere") && combo.platform == "vsphere" && lookup(local.effective_vsphere_configs, combo.env, null) != null
+  }
+  
+  workspace_id = tfe_workspace.workspaces[each.key].id
+  key          = "TF_VAR_vsphere_datacenter"
+  value        = lookup(lookup(local.effective_vsphere_configs, each.value.env, {}), "datacenter", "")
+  category     = "env"
+  description  = "vSphere datacenter for ${each.value.env} environment"
+}
+
+resource "tfe_variable" "vsphere_compute_cluster" {
+  for_each = {
+    for key, combo in local.env_platform_map :
+    key => combo
+    if contains(var.platforms, "vsphere") && combo.platform == "vsphere" && lookup(local.effective_vsphere_configs, combo.env, null) != null
+  }
+  
+  workspace_id = tfe_workspace.workspaces[each.key].id
+  key          = "TF_VAR_vsphere_compute_cluster"
+  value        = lookup(lookup(local.effective_vsphere_configs, each.value.env, {}), "compute_cluster", "")
+  category     = "env"
+  description  = "vSphere compute cluster for ${each.value.env} environment"
 } 

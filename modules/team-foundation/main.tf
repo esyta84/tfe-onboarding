@@ -11,6 +11,13 @@ resource "tfe_project" "team_projects" {
   description  = "${var.team_config.name} ${each.value} environment"
 }
 
+# Create a map of environment to project ID for use in workspace creation
+locals {
+  project_ids = {
+    for env in var.environments : env => tfe_project.team_projects[env].id
+  }
+}
+
 ###################################################
 # Team Variable Sets
 ###################################################
@@ -85,4 +92,31 @@ resource "tfe_project_variable_set" "azure_varset_association" {
   
   variable_set_id = var.platform_varset_ids.azure
   project_id      = tfe_project.team_projects[each.value].id
+}
+
+# Create workspaces for this team
+module "workspaces" {
+  source = "../workspace-factory"
+  
+  organization        = var.organization
+  team_name           = var.team_config.name
+  team_projects       = local.project_ids
+  environments        = var.environments
+  platforms           = var.platforms
+  environment_configs = var.environment_configs
+  
+  # Pass team-specific variables to be set at workspace level
+  team_variables = {
+    cost_code = var.team_config.cost_code
+    team_email = var.team_config.email
+  }
+  
+  # Pass team-specific platform configurations
+  aws_team_config     = var.aws_team_config
+  azure_team_config   = var.azure_team_config
+  vsphere_team_config = var.vsphere_team_config
+  
+  depends_on = [
+    tfe_project.team_projects
+  ]
 } 

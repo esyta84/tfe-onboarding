@@ -6,14 +6,17 @@ variable "organization" {
 variable "team_config" {
   description = "Configuration for the team"
   type = object({
-    name        = string
-    description = string
-    email       = string
-    cost_code   = string
-    platforms   = list(string)
+    name         = string
+    description  = string
+    email        = string
+    cost_code    = string
+    platforms    = list(string)
     environments = list(string)
-    admins      = list(string)
-    members     = list(string)
+    admins       = list(string)
+    members      = list(string)
+    aws_config   = optional(map(any))
+    azure_config = optional(map(any))
+    vsphere_config = optional(map(any))
   })
 }
 
@@ -36,17 +39,27 @@ variable "platforms" {
 }
 
 variable "platform_varset_ids" {
-  description = "Map of platform names to their variable set IDs"
-  type = object({
-    vsphere = string
-    aws     = string
-    azure   = string
-  })
-  default = {
-    vsphere = null
-    aws     = null
-    azure   = null
-  }
+  description = "Map of platform variable set IDs"
+  type        = map(string)
+  default     = {}
+}
+
+variable "aws_team_config" {
+  description = "Team-specific AWS configuration per environment that overrides the global AWS config"
+  type        = map(any)
+  default     = null
+}
+
+variable "azure_team_config" {
+  description = "Team-specific Azure configuration per environment that overrides the global Azure config"
+  type        = map(any)
+  default     = null
+}
+
+variable "vsphere_team_config" {
+  description = "Team-specific vSphere configuration per environment that overrides the global vSphere config"
+  type        = map(any)
+  default     = null
 }
 
 variable "environment_configs" {
