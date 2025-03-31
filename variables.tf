@@ -52,19 +52,14 @@ variable "vsphere_config" {
   description = "Configuration for vSphere environments"
   type = object({
     enabled     = bool
-    datacenter  = string
-    cluster     = string
-    datastore   = string
-    network     = string
-    folder_path = string
+    datacenter  = optional(string)
+    cluster     = optional(string)
+    datastore   = optional(string)
+    network     = optional(string)
+    folder_path = optional(string)
   })
   default = {
-    enabled     = true
-    datacenter  = "dc-01"
-    cluster     = ""
-    datastore   = ""
-    network     = ""
-    folder_path = ""
+    enabled     = false
   }
 }
 
@@ -87,15 +82,19 @@ variable "azure_config" {
   description = "Configuration for Azure environments"
   type = object({
     enabled           = bool
-    location          = optional(string, "australiaeast")
-    subscription_id   = optional(string)
-    resource_group    = optional(string)
-    virtual_network   = optional(string)
-    subnet_id         = optional(string)
+    subscription_id   = string
+    resource_group    = string
+    location          = string
+    virtual_network   = string
+    subnet_id         = string
   })
   default = {
-    enabled = false
-    # Optional fields don't need defaults in this block
+    enabled           = false
+    subscription_id   = ""
+    resource_group    = ""
+    location          = "eastus"
+    virtual_network   = ""
+    subnet_id         = ""
   }
 }
 
