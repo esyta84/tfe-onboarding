@@ -196,46 +196,31 @@ sso_team_membership_attribute = "MemberOf"
 
 # SSO Provider Configuration (choose one)
 sso_configuration = {
-  provider_type = "azure_ad"  # Options: "none", "okta", "azure_ad", "keycloak", "keycloak_redhat", "generic_saml"
-  
-  # Azure AD Configuration
-  azure_ad_metadata_url = "https://login.microsoftonline.com/tenant-id/federationmetadata/2007-06/federationmetadata.xml"
-  
-  # Uncomment for Okta Configuration
-  # provider_type = "okta"
-  # okta_metadata_url = "https://your-okta-domain.okta.com/app/your-app-id/sso/saml/metadata"
-  
-  # Uncomment for Keycloak Configuration
-  # provider_type = "keycloak"
-  # keycloak_metadata_url = "https://keycloak.example.com/auth/realms/master/protocol/saml/descriptor"
-  # keycloak_client_id = "terraform-enterprise"
-  # keycloak_realm = "master"
+  # Standard Keycloak Configuration
+  provider_type = "keycloak"
+  keycloak_metadata_url = "https://keycloak.example.com/auth/realms/master/protocol/saml/descriptor"
+  keycloak_client_id = "terraform-enterprise"
+  keycloak_realm = "master"
   
   # Uncomment for Red Hat build of Keycloak Configuration
   # provider_type = "keycloak_redhat"
   # keycloak_redhat_metadata_url = "https://sso.example.com/auth/realms/master/protocol/saml/descriptor"
   # keycloak_redhat_client_id = "terraform-enterprise"
   # keycloak_redhat_realm = "master"
-  
-  # Uncomment for Generic SAML Configuration
-  # provider_type = "generic_saml"
-  # saml_idp_metadata = "<?xml version=\"1.0\"?>...full metadata XML content..."
-  # saml_sso_url = "https://your-idp.example.com/sso/saml"
-  # saml_certificate = "-----BEGIN CERTIFICATE-----\n...certificate content...\n-----END CERTIFICATE-----"
 }
 
-# Map Identity Provider Groups/Roles to TFE teams
+# Map Keycloak Roles to TFE teams
 sso_team_mappings = {
   admins = {
     name = "Administrators"
-    sso_team_id = "00000000-0000-0000-0000-000000000001"  # ID/UUID (AD Group, Keycloak Role, etc.)
+    sso_team_id = "a1b2c3d4-e5f6-0000-0000-000000000001"  # Keycloak role ID
   },
   developers = {
     name = "Developers"
-    sso_team_id = "00000000-0000-0000-0000-000000000002"  # ID/UUID (AD Group, Keycloak Role, etc.)
+    sso_team_id = "a1b2c3d4-e5f6-0000-0000-000000000002"  # Keycloak role ID
   },
   operators = {
     name = "Operators"
-    sso_team_id = "00000000-0000-0000-0000-000000000003"  # ID/UUID (AD Group, Keycloak Role, etc.)
+    sso_team_id = "a1b2c3d4-e5f6-0000-0000-000000000003"  # Keycloak role ID
   }
 } 

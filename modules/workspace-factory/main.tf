@@ -21,6 +21,17 @@ locals {
 
   # Create a map of workspaces for easier lookup
   workspaces = tfe_workspace.workspaces
+  
+  # Create flattened team variables for all workspaces
+  workspace_vars = flatten([
+    for workspace_key, workspace in tfe_workspace.workspaces : [
+      for var_key, var_value in var.team_variables : {
+        workspace_key = workspace_key
+        var_key       = var_key
+        var_value     = var_value
+      }
+    ]
+  ])
 
   # Use team-specific per-environment AWS configs if available
   effective_aws_configs = var.aws_team_config != null ? var.aws_team_config : {
@@ -95,61 +106,56 @@ resource "tfe_workspace" "workspaces" {
 ###################################################
 
 # Add team-specific variables to each workspace
-resource "tfe_workspace_variable" "team_variables" {
+resource "tfe_variable" "team_variables" {
   for_each = {
-    for combo in flatten([
-      for workspace_key, workspace in tfe_workspace.workspaces : [
-        for var_key, var_value in var.team_variables : {
-          workspace_key = workspace_key
-          workspace_id  = workspace.id
-          var_key       = var_key
-          var_value     = var_value
-        }
-      ]
-    ]) : "${combo.workspace_key}-${combo.var_key}" => combo
+    for item in local.workspace_vars : "${item.workspace_key}-${item.var_key}" => item
   }
   
-  workspace_id = each.value.workspace_id
+  workspace_id = local.workspaces["${each.value.workspace_key}"].id
   key          = each.value.var_key
   value        = each.value.var_value
   category     = "terraform"
-  description  = "Team variable: ${each.value.var_key}"
+  description  = "Team variable for ${each.value.var_key}"
   sensitive    = false
 }
 
 # Add environment-specific variables
-resource "tfe_workspace_variable" "environment_name" {
-  for_each = local.env_platform_map
+resource "tfe_variable" "environment_name" {
+  for_each = local.workspaces
   
-  workspace_id = tfe_workspace.workspaces[each.key].id
+  workspace_id = each.value.id
   key          = "environment"
-  value        = each.value.env
+  value        = local.env_platform_map[each.key].env
   category     = "terraform"
-  description  = "Environment name"
+  description  = "Environment for this workspace"
   sensitive    = false
 }
 
 # Add platform-specific variables
-resource "tfe_workspace_variable" "platform_name" {
-  for_each = local.env_platform_map
+resource "tfe_variable" "platform_name" {
+  for_each = local.workspaces
   
-  workspace_id = tfe_workspace.workspaces[each.key].id
+  workspace_id = each.value.id
   key          = "platform"
-  value        = each.value.platform
+  value        = local.env_platform_map[each.key].platform
   category     = "terraform"
-  description  = "Platform name"
+  description  = "Platform for this workspace"
   sensitive    = false
 }
 
 # Add a variable for operation timeout, since we can't set it directly on the workspace
-resource "tfe_workspace_variable" "operation_timeout" {
-  for_each = local.env_platform_map
+resource "tfe_variable" "operation_timeout" {
+  for_each = {
+    for key, workspace in local.workspaces :
+    key => workspace
+    if lookup(lookup(var.environment_configs, local.env_platform_map[key].env, {}), "run_operation_timeout", null) != null
+  }
   
-  workspace_id = tfe_workspace.workspaces[each.key].id
-  key          = "operation_timeout_minutes"
-  value        = tostring(var.environment_configs[each.value.env].run_operation_timeout)
-  category     = "terraform"
-  description  = "Operation timeout in minutes"
+  workspace_id = each.value.id
+  key          = "TFE_RUN_OPERATION_TIMEOUT"
+  value        = tostring(lookup(var.environment_configs[local.env_platform_map[each.key].env], "run_operation_timeout", 0))
+  category     = "env"
+  description  = "Maximum duration for Terraform operations in minutes"
   sensitive    = false
 }
 

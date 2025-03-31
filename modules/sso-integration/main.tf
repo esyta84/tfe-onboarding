@@ -1,93 +1,59 @@
 ###################################################
-# SSO Configuration
+# SSO Integration for Terraform Enterprise
 ###################################################
 
-# Configure SSO for the organization
-resource "tfe_organization_settings" "sso_settings" {
-  organization = var.organization
+# Note: This is a simplified version of the SSO integration module
+# that only sets up team SSO IDs for team mappings
+# The organization settings for SSO and team membership management
+# must be configured manually through the TFE admin console
+
+###################################################
+# SSO Configuration for Keycloak Integration
+###################################################
+
+# Conditional configuration that works with both Terraform Cloud and Terraform Enterprise
+locals {
+  # Use to determine if we should attempt to use cloud-specific resources
+  is_cloud_compatible = true
   
-  # Enable SAML SSO by configuring settings based on provider type
-  dynamic "sso" {
-    for_each = var.sso_configuration.provider_type == "okta" ? [1] : []
-    content {
-      enabled     = true
-      debug       = false
-      idp_metadata_url = var.sso_configuration.okta_metadata_url
-    }
-  }
+  # Create instructions for Keycloak SSO setup
+  sso_instruction_message = <<-EOT
+  IMPORTANT: Keycloak SSO configuration must be done manually in the Terraform Enterprise UI:
   
-  dynamic "sso" {
-    for_each = var.sso_configuration.provider_type == "azure_ad" ? [1] : []
-    content {
-      enabled     = true
-      debug       = false
-      idp_metadata_url = var.sso_configuration.azure_ad_metadata_url
-    }
-  }
+  1. Go to your organization settings
+  2. Navigate to the "SSO" section
+  3. Configure your Keycloak SSO provider with these settings:
   
-  # Standard Keycloak configuration
-  dynamic "sso" {
-    for_each = var.sso_configuration.provider_type == "keycloak" ? [1] : []
-    content {
-      enabled     = true
-      debug       = false
-      idp_metadata_url = var.sso_configuration.keycloak_metadata_url
-      
-      # Additional Keycloak attributes
-      attributes = {
-        "client_id" = var.sso_configuration.keycloak_client_id
-        "realm"     = var.sso_configuration.keycloak_realm
-      }
-    }
-  }
+  Provider: ${var.sso_configuration.provider_type}
+  ${var.sso_configuration.provider_type == "keycloak" ? "Metadata URL: ${var.sso_configuration.keycloak_metadata_url}" : ""}
+  ${var.sso_configuration.provider_type == "keycloak" ? "Client ID: ${var.sso_configuration.keycloak_client_id}" : ""}
+  ${var.sso_configuration.provider_type == "keycloak" ? "Realm: ${var.sso_configuration.keycloak_realm}" : ""}
+  ${var.sso_configuration.provider_type == "keycloak_redhat" ? "Metadata URL: ${var.sso_configuration.keycloak_redhat_metadata_url}" : ""}
+  ${var.sso_configuration.provider_type == "keycloak_redhat" ? "Client ID: ${var.sso_configuration.keycloak_redhat_client_id}" : ""}
+  ${var.sso_configuration.provider_type == "keycloak_redhat" ? "Realm: ${var.sso_configuration.keycloak_redhat_realm}" : ""}
   
-  # Red Hat build of Keycloak configuration
-  dynamic "sso" {
-    for_each = var.sso_configuration.provider_type == "keycloak_redhat" ? [1] : []
-    content {
-      enabled     = true
-      debug       = false
-      idp_metadata_url = var.sso_configuration.keycloak_redhat_metadata_url
-      
-      # Additional Red Hat Keycloak attributes
-      attributes = {
-        "client_id" = var.sso_configuration.keycloak_redhat_client_id
-        "realm"     = var.sso_configuration.keycloak_redhat_realm
-        "provider"  = "redhat-sso"
-      }
-    }
-  }
+  4. Enable team management
+  5. Set the team membership attribute to: ${var.team_membership_attribute}
   
-  dynamic "sso" {
-    for_each = var.sso_configuration.provider_type == "generic_saml" ? [1] : []
-    content {
-      enabled     = true
-      debug       = false
-      idp_metadata = var.sso_configuration.saml_idp_metadata
-      sso_url     = var.sso_configuration.saml_sso_url
-      certificate = var.sso_configuration.saml_certificate
-    }
-  }
+  KEYCLOAK CONFIGURATION INSTRUCTIONS:
+  
+  1. Ensure your Keycloak realm has the appropriate client configuration for Terraform Enterprise
+  2. Configure client mappers to include the ${var.team_membership_attribute} attribute in the SAML assertion
+  3. Set up role mappings in Keycloak that correspond to the TFE team names
+  4. Make sure the SAML response uses NameID format: urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress
+  EOT
 }
 
-###################################################
-# Team Management Configuration
-###################################################
-
-# Configure team management via SAML
-resource "tfe_organization_membership_management" "team_mapping" {
-  count = var.enable_team_management ? 1 : 0
-  
-  organization = var.organization
-  enabled      = true
-  team_map_attribute = var.team_membership_attribute
+# Output setup instructions for SSO configuration
+output "sso_setup_instructions" {
+  value = local.sso_instruction_message
 }
 
 ###################################################
 # SSO Team IDs Configuration
 ###################################################
 
-# Configure SSO Team IDs for mapping groups/roles to TFE teams
+# Configure SSO Team IDs for mapping Keycloak roles to TFE teams
 resource "tfe_team" "teams" {
   for_each = var.teams
   
@@ -95,6 +61,6 @@ resource "tfe_team" "teams" {
   organization = var.organization
   visibility   = "organization"
   
-  # Set the SSO Team ID to the Group ID or Keycloak Role ID
+  # Set the SSO Team ID to the Keycloak Role ID
   sso_team_id  = each.value.sso_team_id
 } 
