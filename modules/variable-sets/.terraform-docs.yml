@@ -1,0 +1,82 @@
+formatter: "markdown table"
+
+version: ""
+
+header-from: "main.tf"
+footer-from: ""
+
+recursive:
+  enabled: false
+  path: ""
+
+sections:
+  hide: []
+  show: []
+
+content: |
+  # Variable Sets Module
+
+  This module creates and manages variable sets for different cloud platforms in Terraform Enterprise, making it easy to share platform-specific configurations across multiple workspaces and projects.
+
+  ## Overview
+
+  The Variable Sets module:
+
+  - Creates platform-specific variable sets for AWS, Azure, and vSphere
+  - Populates variable sets with appropriate variables for each platform
+  - Organizes variables in a logical structure that can be applied to workspaces
+  - Supports global variable sets that can be applied across the organization
+
+  ## Usage
+
+  ```hcl
+  module "platform_varsets" {
+    source       = "../modules/variable-sets"
+    organization = "my-tfe-org"
+    
+    # AWS Configuration
+    aws_config = {
+      enabled     = true
+      region      = "ap-southeast-2"
+      account_id  = "123456789012"
+      vpc_id      = "vpc-abcdef123456"
+      subnet_ids  = ["subnet-abc123", "subnet-def456"]
+    }
+    
+    # Azure Configuration - optional, set enabled to false if not needed
+    azure_config = {
+      enabled         = false
+      subscription_id = ""
+      resource_group  = ""
+      location        = ""
+      virtual_network = ""
+      subnet_id       = ""
+    }
+    
+    # vSphere Configuration - optional, set enabled to false if not needed
+    vsphere_config = {
+      enabled     = false
+      datacenter  = ""
+      cluster     = ""
+      datastore   = ""
+      network     = ""
+      folder_path = ""
+    }
+  }
+  ```
+
+  ## Requirements
+
+  {{ .Requirements }}
+
+  ## Providers
+
+  {{ .Providers }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }} 

@@ -1,0 +1,96 @@
+formatter: "markdown table"
+
+version: ""
+
+header-from: "main.tf"
+footer-from: ""
+
+recursive:
+  enabled: false
+  path: ""
+
+sections:
+  hide: []
+  show: []
+
+content: |
+  # RBAC Module
+
+  This module manages Role-Based Access Control (RBAC) in Terraform Enterprise, including team creation, permissions assignment, and project access.
+
+  ## Overview
+
+  The RBAC module:
+
+  - Creates teams with specified members and permissions
+  - Assigns team membership for users
+  - Configures project-level access controls
+  - Supports both admin and regular teams
+  - Can be used to manage organization-wide permissions
+
+  ## Usage
+
+  ### Admin Team Example
+
+  ```hcl
+  module "admin_team" {
+    source = "../modules/rbac"
+    
+    organization = "my-tfe-org"
+    
+    # Create an admin team
+    team_name        = "platform-admins"
+    team_description = "Team responsible for managing TFE platform"
+    team_visibility  = "organization"
+    
+    # Set admins and members
+    admins  = ["admin1@example.com", "admin2@example.com"] 
+    members = ["member1@example.com", "member2@example.com"]
+    
+    # Optional: Grant access to specific projects
+    project_access = {
+      "platform-management" = "admin"    # Admin access to platform management project
+      "team-onboarding"     = "maintain" # Maintain access to team onboarding project
+    }
+  }
+  ```
+
+  ### Regular Team with Project Access Example
+
+  ```hcl
+  module "dev_team" {
+    source = "../modules/rbac"
+    
+    organization = "my-tfe-org"
+    
+    team_name        = "developers"
+    team_description = "Development team with limited access"
+    team_visibility  = "organization"
+    
+    admins  = ["lead-dev@example.com"]
+    members = ["dev1@example.com", "dev2@example.com", "dev3@example.com"]
+    
+    # Grant appropriate access levels to different projects
+    project_access = {
+      "app-dev"         = "write"    # Write access to development project
+      "shared-modules"  = "read"     # Read access to shared modules
+      "production"      = "read"     # Read-only access to production
+    }
+  }
+  ```
+
+  ## Requirements
+
+  {{ .Requirements }}
+
+  ## Providers
+
+  {{ .Providers }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }} 

@@ -1,0 +1,124 @@
+formatter: "markdown table"
+
+version: ""
+
+header-from: "main.tf"
+footer-from: ""
+
+recursive:
+  enabled: false
+  path: ""
+
+sections:
+  hide: []
+  show: []
+
+content: |
+  # Workspace Factory Module
+
+  This module creates and configures workspaces in Terraform Enterprise for different environments and cloud platforms.
+
+  ## Overview
+
+  The Workspace Factory module:
+
+  - Creates workspaces for each combination of environment and platform
+  - Configures workspace settings based on environment-specific configurations
+  - Sets up workspace variables for different cloud platforms (AWS)
+  - Organizes workspaces within team-specific projects
+
+  ## Usage
+
+  ```hcl
+  module "workspace_factory" {
+    source = "../modules/workspace-factory"
+    
+    organization = "my-tfe-org"
+    team_name    = "engineering"
+    
+    # Map of environment names to project IDs
+    team_projects = {
+      "dev"     = "prj-AbCdEf123456"
+      "preprod" = "prj-GhIjKl789012"
+      "prod"    = "prj-MnOpQr345678"
+    }
+    
+    # List of environments to create workspaces for
+    environments = ["dev", "preprod", "prod"]
+    
+    # List of cloud platforms to create workspaces for
+    platforms = ["aws"]
+    
+    # Environment-specific configurations
+    environment_configs = {
+      dev = {
+        auto_apply           = true
+        terraform_version    = "1.6.0"
+        execution_mode       = "remote"
+        allow_destroy_plan   = true
+        workspace_name_prefix = "dev-"
+        # ... other settings
+      },
+      preprod = {
+        auto_apply           = false
+        terraform_version    = "1.6.0"
+        execution_mode       = "remote"
+        allow_destroy_plan   = false
+        workspace_name_prefix = "preprod-"
+        # ... other settings
+      },
+      prod = {
+        auto_apply           = false
+        terraform_version    = "1.6.0"
+        execution_mode       = "remote"
+        allow_destroy_plan   = false
+        workspace_name_prefix = "prod-"
+        # ... other settings
+      }
+    }
+    
+    # Team-specific variables to set in workspaces
+    team_variables = {
+      cost_code = "CC-ENG-123"
+      team_email = "engineering@example.com"
+    }
+    
+    # AWS configuration for each environment
+    aws_team_config = {
+      dev = {
+        region     = "ap-southeast-2"
+        account_id = "111111111111"
+        vpc_id     = "vpc-dev111111111111"
+        subnet_ids = ["subnet-dev1111111", "subnet-dev2222222"]
+      },
+      preprod = {
+        region     = "ap-southeast-2"
+        account_id = "222222222222"
+        vpc_id     = "vpc-preprod22222222"
+        subnet_ids = ["subnet-preprod1111", "subnet-preprod2222"]
+      },
+      prod = {
+        region     = "ap-southeast-2"
+        account_id = "333333333333"
+        vpc_id     = "vpc-prod3333333333"
+        subnet_ids = ["subnet-prod1111111", "subnet-prod2222222"]
+      }
+    }
+  }
+  ```
+
+  ## Requirements
+
+  {{ .Requirements }}
+
+  ## Providers
+
+  {{ .Providers }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }} 

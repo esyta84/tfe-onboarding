@@ -4,7 +4,7 @@ This directory contains the Terraform configuration for the App-X team workspace
 
 ## Overview
 
-The App-X team uses this Terraform configuration to manage their infrastructure across development, pre-production, and production environments, using AWS, Azure, and vSphere platforms.
+The App-X team uses this Terraform configuration to manage their infrastructure across development, pre-production, and production environments, using AWS as the cloud platform.
 
 ## Structure
 
@@ -29,9 +29,7 @@ app-x/
 │       ├── variables.tf
 │       └── outputs.tf
 └── platform-config/              # Platform-specific configurations
-    ├── aws.tf                    # AWS-specific resources
-    ├── azure.tf                  # Azure-specific resources
-    └── vsphere.tf                # vSphere-specific resources
+    └── aws.tf                    # AWS-specific resources
 ```
 
 ## Usage
@@ -78,7 +76,7 @@ terraform apply
 - **Description**: Application X team workspaces
 - **Email**: app-x-team@example.com
 - **Cost Code**: CC-APP-X-456
-- **Platforms**: AWS, Azure, vSphere
+- **Platforms**: AWS
 - **Environments**: Development, Pre-production, Production
 
 ## SSO Configuration
@@ -97,4 +95,26 @@ Team App-X uses separate workspaces for each environment to ensure proper isolat
 - **Pre-production**: For integration testing and UAT
 - **Production**: For live customer-facing systems
 
-Each workspace has specific permission levels assigned based on environment sensitivity. 
+Each workspace has specific permission levels assigned based on environment sensitivity.
+
+## AWS Configuration
+
+The App-X team has environment-specific AWS configurations:
+
+- **Development**:
+  - AWS Account: 111111111111
+  - Region: ap-southeast-2
+  - VPC: vpc-dev111111111111
+  - Subnets: subnet-dev1111111, subnet-dev2222222
+
+- **Pre-production**:
+  - AWS Account: 222222222222
+  - Region: ap-southeast-2
+  - VPC: vpc-preprod22222222
+  - Subnets: subnet-preprod1111, subnet-preprod2222
+
+- **Production**:
+  - AWS Account: 333333333333
+  - Region: ap-southeast-2
+  - VPC: vpc-prod3333333333
+  - Subnets: subnet-prod1111111, subnet-prod2222222 

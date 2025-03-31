@@ -1,0 +1,232 @@
+formatter: "markdown table"
+
+version: ""
+
+header-from: main.tf
+footer-from: ""
+
+recursive:
+  enabled: false
+  path: modules
+
+sections:
+  hide: []
+  show: []
+
+content: |
+  # Terraform Enterprise Onboarding Automation
+
+  This repository contains Terraform code for automating team onboarding to our Terraform Enterprise platform. It provides a scalable, modular approach to managing hundreds of workspaces across different teams and environments.
+
+  ## Overview
+
+  This codebase enables the automated creation and management of:
+
+  - Team organizations in Terraform Enterprise
+  - Projects for different environments (dev, preprod, prod)
+  - Workspaces for different platforms (AWS)
+  - Variable sets for platform-specific configurations
+  - Team-specific variables
+  - Administrative workflows for platform management
+  - Keycloak SSO integration for team membership management
+
+  ## Repository Structure
+
+  ```
+  .
+  ├── README.md                       # This file
+  ├── main.tf                         # Root module entry point
+  ├── variables.tf                    # Global variables definition
+  ├── outputs.tf                      # Global outputs
+  ├── providers.tf                    # Provider configurations
+  ├── terraform.tfvars.example        # Example variable values
+  ├── environments/                   # Environment-specific variable files
+  │   ├── dev.tfvars                  # Development environment variables
+  │   ├── preprod.tfvars              # Pre-production environment variables
+  │   └── prod.tfvars                 # Production environment variables
+  ├── modules/                        # Reusable modules
+  │   ├── team-foundation/            # Creates team projects and base structure
+  │   ├── workspace-factory/          # Creates and configures workspaces
+  │   ├── variable-sets/              # Manages variable sets
+  │   ├── sso-integration/            # Keycloak SSO integration
+  │   └── rbac/                       # Manages team permissions
+  ├── teams/                          # Team-specific configurations
+  │   └── app-x/                      # Example team configuration
+  └── ci/                             # CI/CD pipeline configurations
+      └── azure-devops/               # Azure DevOps pipelines
+  ```
+
+  ## Usage
+
+  ### Prerequisites
+
+  - Terraform >= 1.0.0
+  - Terraform Enterprise account with admin privileges
+  - API tokens with appropriate permissions
+
+  ### Getting Started
+
+  1. Clone this repository
+  2. Copy `terraform.tfvars.example` to `terraform.tfvars` and update with your specific values
+  3. Initialize Terraform: `terraform init`
+  4. Plan the changes: `terraform plan -var-file="terraform.tfvars"`
+  5. Apply the changes: `terraform apply -var-file="terraform.tfvars"`
+
+  ### Adding a New Team
+
+  There are two ways to onboard a new team:
+
+  #### Manual Method
+  1. Create a new directory under `teams/` with the team name
+  2. Create the necessary configuration files (see example in `teams/app-x/`)
+  3. Run Terraform to apply the changes
+
+  #### Example: App-X Team Structure
+
+  We've included a complete example of team configuration for `app-x` that demonstrates the recommended folder structure:
+
+  ```
+  teams/app-x/
+  ├── README.md                     # Team-specific documentation
+  ├── main.tf                       # Main configuration that uses the root module
+  ├── variables.tf                  # Variable declarations for team config
+  ├── outputs.tf                    # Team-specific outputs
+  ├── team.tfvars                   # Team-specific variable values
+  ├── workspaces/                   # Environment-specific workspaces
+  │   ├── dev/                      # Development environment
+  │   │   ├── main.tf               # Dev-specific resources
+  │   │   ├── variables.tf          # Dev-specific variables
+  │   │   └── outputs.tf            # Dev-specific outputs
+  │   ├── preprod/                  # Similar structure for pre-production
+  │   └── prod/                     # Similar structure for production
+  └── platform-config/              # Platform-specific configurations
+      └── aws.tf                    # AWS-specific resources
+  ```
+
+  To use this example, copy the structure for your new team:
+
+  ```bash
+  # Copy the example team structure
+  cp -r teams/app-x teams/your-new-team
+
+  # Update the team-specific configurations
+  # Edit teams/your-new-team/team.tfvars with your team details
+
+  # Apply the configuration
+  cd teams/your-new-team
+  terraform init
+  terraform plan -var-file="team.tfvars"
+  terraform apply -var-file="team.tfvars"
+  ```
+
+  #### Automated Method Using Azure DevOps Pipeline
+  1. Use the Azure DevOps team onboarding pipeline (`ci/azure-devops/azure-pipelines-team-onboarding.yml`)
+  2. Provide the required team parameters through the Azure DevOps pipeline interface
+  3. The pipeline will automatically generate and apply the configuration
+
+  ## SSO Integration for Team Membership
+
+  This project supports automatic team membership assignment based on Keycloak roles. The SSO integration module enables:
+
+  - Configuring SSO for your Terraform Enterprise organization
+  - Automatic team membership management via SAML assertions
+  - Mapping Keycloak roles to Terraform Enterprise teams using SSO Team IDs
+
+  ### How It Works
+
+  1. When a user logs in via SSO, their SAML assertions include role memberships
+  2. Terraform Enterprise automatically assigns the user to teams based on the mapping between:
+     - Keycloak role IDs (in the SAML attribute)
+     - TFE Team SSO IDs (configured in this module)
+
+  ### Supported Identity Providers
+
+  - Keycloak (standard)
+  - Red Hat build of Keycloak
+
+  ### Configuration
+
+  Configure SSO integration in your `terraform.tfvars` file:
+
+  ```hcl
+  # Enable team management via SAML assertions
+  enable_sso_team_management = true
+
+  # SAML attribute containing team membership information
+  sso_team_membership_attribute = "MemberOf"
+
+  # SSO Provider Configuration (choose one)
+  sso_configuration = {
+    # Standard Keycloak Configuration
+    provider_type = "keycloak"
+    keycloak_metadata_url = "https://keycloak.example.com/auth/realms/master/protocol/saml/descriptor"
+    keycloak_client_id = "terraform-enterprise"
+    keycloak_realm = "master"
+    
+    # Uncomment for Red Hat build of Keycloak Configuration
+    # provider_type = "keycloak_redhat"
+    # keycloak_redhat_metadata_url = "https://sso.example.com/auth/realms/master/protocol/saml/descriptor"
+    # keycloak_redhat_client_id = "terraform-enterprise"
+    # keycloak_redhat_realm = "master"
+  }
+
+  # Map Keycloak Roles to TFE teams
+  sso_team_mappings = {
+    admins = {
+      name = "Administrators"
+      sso_team_id = "a1b2c3d4-e5f6-0000-0000-000000000001"  # Keycloak role ID
+    }
+  }
+  ```
+
+  ## Recommended Project and Workspace Hierarchy
+
+  When using Terraform Enterprise to manage itself (meta-terraform), we recommend the following project and workspace hierarchy:
+
+  ### 1. Core Platform Project
+  ```
+  terraform-platform/
+  ├── tfe-core-infrastructure      # Core TFE installation and infrastructure
+  ├── tfe-admin-settings           # Global TFE admin settings  
+  └── tfe-sso-integration          # Keycloak SSO integration
+  ```
+
+  ### 2. Team Onboarding Project
+  ```
+  team-onboarding/
+  ├── engineering-team-config      # Engineering team's workspaces and permissions
+  ├── finance-team-config          # Finance team's workspaces and permissions
+  └── platform-team-config         # Platform team's workspaces and permissions
+  ```
+
+  ### 3. Platform Modules Project
+  ```
+  platform-modules/
+  ├── workspace-factory            # Module for workspace creation
+  ├── team-foundation              # Module for team setup
+  └── policy-sets                  # Sentinel policies for governance
+  ```
+
+  ## Requirements
+
+  {{ .Requirements }}
+
+  ## Providers
+
+  {{ .Providers }}
+
+  ## Modules
+
+  {{ .Modules }}
+
+  ## Resources
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }} 

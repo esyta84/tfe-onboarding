@@ -79,7 +79,7 @@ variable "aws_config" {
   })
   default = {
     enabled     = false
-    region      = "us-west-2"
+    region      = "ap-southeast-2"
     account_id  = ""
     vpc_id      = ""
     subnet_ids  = []

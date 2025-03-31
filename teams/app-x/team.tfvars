@@ -15,19 +15,19 @@ team_config = {
   # Per-environment AWS configuration
   aws_config = {
     dev = {
-      region     = "us-west-2"
+      region     = "ap-southeast-2"
       account_id = "111111111111"
       vpc_id     = "vpc-dev1234"
       subnet_ids = ["subnet-dev1", "subnet-dev2", "subnet-dev3"]
     }
     preprod = {
-      region     = "us-west-2"
+      region     = "ap-southeast-2"
       account_id = "222222222222"
       vpc_id     = "vpc-preprod1234"
       subnet_ids = ["subnet-preprod1", "subnet-preprod2", "subnet-preprod3"]
     }
     prod = {
-      region     = "us-west-2"
+      region     = "ap-southeast-2"
       account_id = "333333333333"
       vpc_id     = "vpc-prod1234"
       subnet_ids = ["subnet-prod1", "subnet-prod2", "subnet-prod3"]

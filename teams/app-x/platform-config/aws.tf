@@ -3,9 +3,9 @@
 # Define common AWS resources across environments
 locals {
   aws_regions = {
-    dev     = "us-west-2"
-    preprod = "us-west-2"
-    prod    = "us-east-1"  # Production uses a different region
+    dev     = "ap-southeast-2"
+    preprod = "ap-southeast-2"
+    prod    = "ap-southeast-2"  # Production uses a different region
   }
   
   aws_tags = {

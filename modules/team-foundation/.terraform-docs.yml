@@ -1,0 +1,101 @@
+formatter: "markdown table"
+
+version: ""
+
+header-from: "main.tf"
+footer-from: ""
+
+recursive:
+  enabled: false
+  path: ""
+
+sections:
+  hide: []
+  show: []
+
+content: |
+  # Team Foundation Module
+
+  This module creates the foundational resources for a team in Terraform Enterprise, including projects for different environments, variable sets for team-specific settings, and workspaces for infrastructure management.
+
+  ## Overview
+
+  The Team Foundation module:
+
+  - Creates projects for each environment (dev, preprod, prod) for a team
+  - Creates team-specific variable sets with cost code, team email, etc.
+  - Associates the variable sets with the appropriate projects
+  - Associates platform-specific variable sets (AWS, etc.) with the projects
+  - Creates workspaces using the workspace-factory module
+
+  ## Usage
+
+  ```hcl
+  module "team_foundation" {
+    source = "../modules/team-foundation"
+    
+    organization = "my-tfe-org"
+    
+    # Team configuration
+    team_config = {
+      name        = "engineering"
+      description = "Engineering team workspaces"
+      email       = "engineering@example.com"
+      cost_code   = "CC-ENG-123"
+    }
+    
+    # Environments to create for this team
+    environments = ["dev", "preprod", "prod"]
+    
+    # Platforms this team will use
+    platforms = ["aws"]
+    
+    # Variable set IDs for platforms
+    platform_varset_ids = {
+      aws     = module.platform_varsets.aws_varset_id
+      azure   = null
+      vsphere = null
+    }
+    
+    # Environment-specific configurations
+    environment_configs = var.environment_configs
+    
+    # AWS team configuration by environment
+    aws_team_config = {
+      dev = {
+        region      = "ap-southeast-2"
+        account_id  = "111111111111"
+        vpc_id      = "vpc-dev111111111111"
+        subnet_ids  = ["subnet-dev1111111", "subnet-dev2222222"]
+      },
+      preprod = {
+        region      = "ap-southeast-2"
+        account_id  = "222222222222"
+        vpc_id      = "vpc-preprod22222222"
+        subnet_ids  = ["subnet-preprod1111", "subnet-preprod2222"]
+      },
+      prod = {
+        region      = "ap-southeast-2"
+        account_id  = "333333333333"
+        vpc_id      = "vpc-prod3333333333"
+        subnet_ids  = ["subnet-prod1111111", "subnet-prod2222222"]
+      }
+    }
+  }
+  ```
+
+  ## Requirements
+
+  {{ .Requirements }}
+
+  ## Providers
+
+  {{ .Providers }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }} 

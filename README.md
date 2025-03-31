@@ -8,10 +8,27 @@ This codebase enables the automated creation and management of:
 
 - Team organizations in Terraform Enterprise
 - Projects for different environments (dev, preprod, prod)
-- Workspaces for different platforms (vSphere, AWS, Azure)
+- Workspaces for different platforms (AWS, Azure, vSphere)
 - Variable sets for platform-specific configurations
 - Team-specific variables
 - Administrative workflows for platform management
+- Keycloak SSO integration for team membership management
+
+## Module Dependency Flow
+
+This automation follows a specific dependency flow:
+
+1. **Team Foundation** - Creates the foundation for a team:
+   - Creates projects for each environment
+   - Creates team-specific variable sets
+   - Associates platform variable sets with projects
+
+2. **Workspace Factory** - Uses projects created by Team Foundation:
+   - Takes project IDs as input from Team Foundation module
+   - Creates workspaces within these existing projects
+   - Configures platform-specific settings (AWS, Azure, vSphere)
+
+This separation of concerns follows HashiCorp's best practices for TFE organization, where projects provide logical grouping and permissions control for workspaces.
 
 ## Repository Structure
 
@@ -31,23 +48,12 @@ This codebase enables the automated creation and management of:
 │   ├── team-foundation/            # Creates team projects and base structure
 │   ├── workspace-factory/          # Creates and configures workspaces
 │   ├── variable-sets/              # Manages variable sets
+│   ├── sso-integration/            # Keycloak SSO integration
 │   └── rbac/                       # Manages team permissions
 ├── teams/                          # Team-specific configurations
-│   └── example-team/               # Example team configuration
-├── variable-sets/                  # Predefined variable sets for platforms
-│   ├── vsphere/                    # vSphere-specific variables
-│   ├── aws/                        # AWS-specific variables
-│   └── azure/                      # Azure-specific variables
-├── admin/                          # Admin-specific workspaces and projects
-│   ├── workspace-management/       # For managing workspace creation
-│   └── platform-provisioning/      # For platform provisioning
+│   └── app-x/                      # Example team configuration
 └── ci/                             # CI/CD pipeline configurations
-    ├── azure-devops/               # Azure DevOps pipelines
-    │   ├── azure-pipelines-ci.yml  # CI pipeline for validation
-    │   ├── azure-pipelines-cd.yml  # CD pipeline for deployment
-    │   ├── azure-pipelines-team-onboarding.yml # Team onboarding pipeline
-    │   └── README.md               # Documentation for pipeline setup
-    └── gitlab-ci/                  # GitLab CI/CD pipelines
+    └── azure-devops/               # Azure DevOps pipelines
 ```
 
 ## Usage
@@ -120,56 +126,71 @@ terraform apply -var-file="team.tfvars"
 2. Provide the required team parameters through the Azure DevOps pipeline interface
 3. The pipeline will automatically generate and apply the configuration
 
-## State Management
+## Multi-cloud Platform Support
 
-This project uses a hierarchical state management approach:
+This project supports multiple cloud platforms to accommodate your organization's infrastructure needs:
 
-- Root state manages global resources
-- Each team has its own state file
-- Administrative operations have separate state files
+### AWS Configuration
+Configure AWS environment settings in your `terraform.tfvars` file:
 
-## Permissions Model
+```hcl
+aws_config = {
+  enabled    = true
+  region     = "ap-southeast-2"
+  account_id = "123456789012"
+  vpc_id     = "vpc-abcdef123456"
+  subnet_ids = ["subnet-abc123", "subnet-def456"]
+}
+```
 
-The codebase supports three permission levels:
+### Azure Configuration
+Configure Azure environment settings in your `terraform.tfvars` file:
 
-- **Read-only users**: Can view but not modify resources
-- **Approvers**: Can approve but not directly apply changes
-- **Administrators**: Full control over resources
+```hcl
+azure_config = {
+  enabled         = true
+  subscription_id = "00000000-0000-0000-0000-000000000000"
+  resource_group  = "my-terraform-rg"
+  location        = "australiaeast"
+  virtual_network = "my-vnet"
+  subnet_id       = "subnet-id-123"
+}
+```
 
-## CI/CD Integration
+### vSphere Configuration
+Configure vSphere environment settings in your `terraform.tfvars` file:
 
-### Azure DevOps Pipelines
-
-This repository includes Azure DevOps pipeline configurations for automated testing, validation, and deployment of the infrastructure code. The pipelines are located in the `ci/azure-devops/` directory:
-
-- **CI Pipeline**: Validates and plans changes to the Terraform code
-- **CD Pipeline**: Deploys changes to dev, preprod, and prod environments
-- **Team Onboarding Pipeline**: Specialized pipeline for team onboarding with parameters
-
-For detailed information on setting up and using these pipelines, see the [Azure DevOps Pipeline README](ci/azure-devops/README.md).
+```hcl
+vsphere_config = {
+  enabled        = true
+  vcenter_server = "vcenter.example.com"
+  datacenter     = "dc-01"
+  cluster        = "cluster-01"
+  datastore      = "datastore-01"
+  network        = "network-01"
+  folder_path    = "/vm/terraform-managed"
+}
+```
 
 ## SSO Integration for Team Membership
 
-This project supports automatic team membership assignment based on identity provider groups and SAML assertions. The SSO integration module enables:
+This project supports automatic team membership assignment based on Keycloak roles. The SSO integration module enables:
 
 - Configuring SSO for your Terraform Enterprise organization
 - Automatic team membership management via SAML assertions
-- Mapping identity provider groups/roles to Terraform Enterprise teams using SSO Team IDs
+- Mapping Keycloak roles to Terraform Enterprise teams using SSO Team IDs
 
 ### How It Works
 
-1. When a user logs in via SSO, their SAML assertions include group/role memberships
+1. When a user logs in via SSO, their SAML assertions include role memberships
 2. Terraform Enterprise automatically assigns the user to teams based on the mapping between:
-   - Identity provider group/role IDs (in the SAML attribute)
+   - Keycloak role IDs (in the SAML attribute)
    - TFE Team SSO IDs (configured in this module)
 
 ### Supported Identity Providers
 
-- Azure Active Directory
-- Okta
 - Keycloak (standard)
 - Red Hat build of Keycloak
-- Generic SAML providers
 
 ### Configuration
 
@@ -179,131 +200,122 @@ Configure SSO integration in your `terraform.tfvars` file:
 # Enable team management via SAML assertions
 enable_sso_team_management = true
 
-# SSO Provider Configuration - Azure AD Example
+# SAML attribute containing team membership information
+sso_team_membership_attribute = "MemberOf"
+
+# SSO Provider Configuration (choose one)
 sso_configuration = {
-  provider_type = "azure_ad"
-  azure_ad_metadata_url = "https://login.microsoftonline.com/tenant-id/federationmetadata/2007-06/federationmetadata.xml"
+  # Standard Keycloak Configuration
+  provider_type = "keycloak"
+  keycloak_metadata_url = "https://keycloak.example.com/auth/realms/master/protocol/saml/descriptor"
+  keycloak_client_id = "terraform-enterprise"
+  keycloak_realm = "master"
+  
+  # Uncomment for Red Hat build of Keycloak Configuration
+  # provider_type = "keycloak_redhat"
+  # keycloak_redhat_metadata_url = "https://sso.example.com/auth/realms/master/protocol/saml/descriptor"
+  # keycloak_redhat_client_id = "terraform-enterprise"
+  # keycloak_redhat_realm = "master"
 }
 
-# SSO Provider Configuration - Keycloak Example
-# sso_configuration = {
-#   provider_type = "keycloak"
-#   keycloak_metadata_url = "https://keycloak.example.com/auth/realms/master/protocol/saml/descriptor"
-#   keycloak_client_id = "terraform-enterprise"
-#   keycloak_realm = "master"
-# }
-
-# Map identity provider groups/roles to TFE teams
+# Map Keycloak Roles to TFE teams
 sso_team_mappings = {
   admins = {
     name = "Administrators"
-    sso_team_id = "<IDP-GROUP-ROLE-ID-FOR-ADMINS>"
-  },
-  developers = {
-    name = "Developers"
-    sso_team_id = "<IDP-GROUP-ROLE-ID-FOR-DEVELOPERS>"
+    sso_team_id = "a1b2c3d4-e5f6-0000-0000-000000000001"  # Keycloak role ID
   }
 }
 ```
 
-#### Keycloak-specific Configuration
+## Recommended Project and Workspace Hierarchy
 
-When using Keycloak as your identity provider:
+When using Terraform Enterprise to manage itself (meta-terraform), we recommend the following project and workspace hierarchy:
 
-1. Create a SAML client in Keycloak for Terraform Enterprise
-2. Configure the client to include role memberships in SAML assertions
-3. The `team_membership_attribute` should be set to "Roles" when using Keycloak roles
-4. Use Keycloak Role IDs as the SSO Team IDs in your configuration
-
-For more details, see the [SSO Integration Module README](./modules/sso-integration/README.md).
-
-## Best Practices
-
-- Use the provided modules for consistency
-- Keep team-specific configurations in dedicated directories
-- Use variable sets for platform-specific configurations
-- Regularly update and test the codebase
-- Follow the recommended workflow for state management
-- Use CI/CD pipelines for automated validation and deployment
-
-## Environment-Specific Platform Configurations
-
-This automation now supports per-environment platform configurations for each team. This means:
-
-- Different AWS accounts for dev, preprod, and prod
-- Different Azure subscriptions for each environment
-- Environment-specific vSphere resources (clusters, datastores, networks)
-
-See [Environment-Specific Platform Configurations](docs/per-environment-configs.md) for detailed documentation.
-
-## Per-Environment Platform Configurations
-
-The onboarding automation supports environment-specific platform configurations for all supported cloud providers (AWS, Azure, and vSphere). This allows teams to use different settings for each environment, such as:
-
-### AWS Configuration
-- Different AWS accounts per environment
-- Environment-specific VPCs and subnets
-- Environment-specific AWS regions
-
-### Azure Configuration
-- Different Azure subscriptions per environment
-- Environment-specific resource groups
-- Environment-specific virtual networks and subnets
-
-### vSphere Configuration
-- Different vCenter servers per environment
-- Environment-specific datacenter and cluster configurations
-- Environment-specific networking and storage options
-
-Example in `team.tfvars`:
-
-```hcl
-team_config = {
-  # Team information
-  name        = "example-team"
-  email       = "team@example.com"
-  # ...
-
-  # AWS per-environment configuration
-  aws_config = {
-    dev = {
-      region     = "us-west-2"
-      account_id = "111111111111"
-      # other environment-specific settings
-    }
-    prod = {
-      region     = "us-east-1"
-      account_id = "222222222222"
-      # other environment-specific settings
-    }
-  }
-
-  # Azure per-environment configuration
-  azure_config = {
-    dev = {
-      location       = "eastus"
-      subscription_id = "11111111-1111-1111-1111-111111111111"
-      # other environment-specific settings
-    }
-    prod = {
-      location       = "westus2"
-      subscription_id = "22222222-2222-2222-2222-222222222222"
-      # other environment-specific settings
-    }
-  }
-
-  # vSphere per-environment configuration
-  vsphere_config = {
-    dev = {
-      vsphere_server  = "vcenter-dev.example.com"
-      datacenter      = "DC-DEV"
-      # other environment-specific settings
-    }
-    prod = {
-      vsphere_server  = "vcenter-prod.example.com"
-      datacenter      = "DC-PROD"
-      # other environment-specific settings
-    }
-  }
-}
+### 1. Core Platform Project
 ```
+terraform-platform/
+├── tfe-core-infrastructure      # Core TFE installation and infrastructure
+├── tfe-admin-settings           # Global TFE admin settings  
+└── tfe-sso-integration          # Keycloak SSO integration
+```
+
+### 2. Team Onboarding Project
+```
+team-onboarding/
+├── engineering-team-config      # Engineering team's workspaces and permissions
+├── finance-team-config          # Finance team's workspaces and permissions
+└── platform-team-config         # Platform team's workspaces and permissions
+```
+
+### 3. Platform Modules Project
+```
+platform-modules/
+├── workspace-factory            # Module for workspace creation
+├── team-foundation              # Module for team setup
+└── policy-sets                  # Sentinel policies for governance
+```
+
+## Requirements
+
+| Name | Version |
+|------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.0.0 |
+| <a name="requirement_random"></a> [random](#requirement\_random) | ~> 3.5.0 |
+| <a name="requirement_tfe"></a> [tfe](#requirement\_tfe) | ~> 0.64.0 |
+
+## Providers
+
+| Name | Version |
+|------|---------|
+| <a name="provider_tfe"></a> [tfe](#provider\_tfe) | ~> 0.64.0 |
+
+## Modules
+
+| Name | Source | Version |
+|------|--------|---------|
+| <a name="module_admin_team"></a> [admin\_team](#module\_admin\_team) | ./modules/rbac | n/a |
+| <a name="module_platform_varsets"></a> [platform\_varsets](#module\_platform\_varsets) | ./modules/variable-sets | n/a |
+| <a name="module_sso_integration"></a> [sso\_integration](#module\_sso\_integration) | ./modules/sso-integration | n/a |
+| <a name="module_team_onboarding"></a> [team\_onboarding](#module\_team\_onboarding) | ./modules/team-foundation | n/a |
+| <a name="module_team_permissions"></a> [team\_permissions](#module\_team\_permissions) | ./modules/rbac | n/a |
+| <a name="module_workspace_creation"></a> [workspace\_creation](#module\_workspace\_creation) | ./modules/workspace-factory | n/a |
+
+## Resources
+
+| Name | Type |
+|------|------|
+| [tfe_organization.org](https://registry.terraform.io/providers/hashicorp/tfe/latest/docs/resources/organization) | resource |
+| [tfe_project.admin_projects](https://registry.terraform.io/providers/hashicorp/tfe/latest/docs/resources/project) | resource |
+| [tfe_team_project_access.admin_project_access](https://registry.terraform.io/providers/hashicorp/tfe/latest/docs/resources/team_project_access) | resource |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| <a name="input_admin_projects"></a> [admin\_projects](#input\_admin\_projects) | List of administrative projects to create | <pre>list(object({<br/>    name        = string<br/>    description = string<br/>  }))</pre> | <pre>[<br/>  {<br/>    "description": "For managing the TFE platform itself",<br/>    "name": "platform-management"<br/>  },<br/>  {<br/>    "description": "For automating workspace creation",<br/>    "name": "workspace-provisioning"<br/>  }<br/>]</pre> | no |
+| <a name="input_admin_team"></a> [admin\_team](#input\_admin\_team) | Configuration for the platform admin team | <pre>object({<br/>    name        = string<br/>    description = string<br/>    admins      = list(string)<br/>    members     = list(string)<br/>  })</pre> | <pre>{<br/>  "admins": [],<br/>  "description": "Team responsible for managing TFE platform",<br/>  "members": [],<br/>  "name": "platform-admins"<br/>}</pre> | no |
+| <a name="input_aws_config"></a> [aws\_config](#input\_aws\_config) | Configuration for AWS environments | <pre>object({<br/>    enabled     = bool<br/>    region      = string<br/>    account_id  = string<br/>    vpc_id      = string<br/>    subnet_ids  = list(string)<br/>  })</pre> | <pre>{<br/>  "account_id": "",<br/>  "enabled": false,<br/>  "region": "ap-southeast-2",<br/>  "subnet_ids": [],<br/>  "vpc_id": ""<br/>}</pre> | no |
+| <a name="input_azure_config"></a> [azure\_config](#input\_azure\_config) | Configuration for Azure environments | <pre>object({<br/>    enabled           = bool<br/>    subscription_id   = string<br/>    resource_group    = string<br/>    location          = string<br/>    virtual_network   = string<br/>    subnet_id         = string<br/>  })</pre> | <pre>{<br/>  "enabled": false,<br/>  "location": "eastus",<br/>  "resource_group": "",<br/>  "subnet_id": "",<br/>  "subscription_id": "",<br/>  "virtual_network": ""<br/>}</pre> | no |
+| <a name="input_enable_sso_team_management"></a> [enable\_sso\_team\_management](#input\_enable\_sso\_team\_management) | Whether to enable team management via SAML assertions | `bool` | `false` | no |
+| <a name="input_environment_configs"></a> [environment\_configs](#input\_environment\_configs) | Configuration for different environments | <pre>map(object({<br/>    auto_apply                = bool<br/>    terraform_version         = string<br/>    execution_mode            = string<br/>    terraform_working_dir     = string<br/>    speculative_enabled       = bool<br/>    allow_destroy_plan        = bool<br/>    file_triggers_enabled     = bool<br/>    trigger_prefixes          = list(string)<br/>    queue_all_runs            = bool<br/>    assessments_enabled       = bool<br/>    global_remote_state       = bool<br/>    run_operation_timeout     = number # In minutes<br/>    workspace_name_prefix     = string # Can be used to prefix workspace names<br/>  }))</pre> | <pre>{<br/>  "dev": {<br/>    "allow_destroy_plan": true,<br/>    "assessments_enabled": false,<br/>    "auto_apply": true,<br/>    "execution_mode": "remote",<br/>    "file_triggers_enabled": true,<br/>    "global_remote_state": false,<br/>    "queue_all_runs": false,<br/>    "run_operation_timeout": 30,<br/>    "speculative_enabled": true,<br/>    "terraform_version": "1.6.0",<br/>    "terraform_working_dir": "",<br/>    "trigger_prefixes": [],<br/>    "workspace_name_prefix": "dev-"<br/>  },<br/>  "preprod": {<br/>    "allow_destroy_plan": false,<br/>    "assessments_enabled": true,<br/>    "auto_apply": false,<br/>    "execution_mode": "remote",<br/>    "file_triggers_enabled": true,<br/>    "global_remote_state": true,<br/>    "queue_all_runs": true,<br/>    "run_operation_timeout": 60,<br/>    "speculative_enabled": true,<br/>    "terraform_version": "1.6.0",<br/>    "terraform_working_dir": "",<br/>    "trigger_prefixes": [],<br/>    "workspace_name_prefix": "preprod-"<br/>  },<br/>  "prod": {<br/>    "allow_destroy_plan": false,<br/>    "assessments_enabled": true,<br/>    "auto_apply": false,<br/>    "execution_mode": "remote",<br/>    "file_triggers_enabled": true,<br/>    "global_remote_state": true,<br/>    "queue_all_runs": true,<br/>    "run_operation_timeout": 120,<br/>    "speculative_enabled": true,<br/>    "terraform_version": "1.6.0",<br/>    "terraform_working_dir": "",<br/>    "trigger_prefixes": [],<br/>    "workspace_name_prefix": "prod-"<br/>  }<br/>}</pre> | no |
+| <a name="input_sso_configuration"></a> [sso\_configuration](#input\_sso\_configuration) | Configuration for the SSO provider integration | <pre>object({<br/>    provider_type = string<br/>    <br/>    # Optional Okta configuration<br/>    okta_metadata_url = optional(string)<br/>    <br/>    # Optional Azure AD configuration<br/>    azure_ad_metadata_url = optional(string)<br/>    <br/>    # Optional Generic SAML configuration<br/>    saml_idp_metadata = optional(string)<br/>    saml_sso_url      = optional(string)<br/>    saml_certificate  = optional(string)<br/>  })</pre> | <pre>{<br/>  "provider_type": "none"<br/>}</pre> | no |
+| <a name="input_sso_team_mappings"></a> [sso\_team\_mappings](#input\_sso\_team\_mappings) | Map of teams to create with SSO Team IDs for Active Directory group mapping | <pre>map(object({<br/>    name        = string<br/>    sso_team_id = string<br/>  }))</pre> | `{}` | no |
+| <a name="input_sso_team_membership_attribute"></a> [sso\_team\_membership\_attribute](#input\_sso\_team\_membership\_attribute) | The name of the SAML attribute containing team membership information | `string` | `"MemberOf"` | no |
+| <a name="input_teams"></a> [teams](#input\_teams) | Map of teams to be onboarded with their configurations | <pre>map(object({<br/>    name        = string<br/>    description = string<br/>    email       = string<br/>    cost_code   = string<br/>    platforms   = list(string) # List of platforms the team will use: "vsphere", "aws", "azure"<br/>    environments = list(string) # By default, this is ["dev", "preprod", "prod"], but can be customized<br/>    admins      = list(string) # List of team admin email addresses<br/>    members     = list(string) # List of team member email addresses<br/>  }))</pre> | `{}` | no |
+| <a name="input_tfe_hostname"></a> [tfe\_hostname](#input\_tfe\_hostname) | The hostname of the Terraform Enterprise instance | `string` | `"app.terraform.io"` | no |
+| <a name="input_tfe_org_email"></a> [tfe\_org\_email](#input\_tfe\_org\_email) | Email address for the Terraform Enterprise organization | `string` | `"admin@example.com"` | no |
+| <a name="input_tfe_organization"></a> [tfe\_organization](#input\_tfe\_organization) | Name of the Terraform Enterprise organization | `string` | n/a | yes |
+| <a name="input_tfe_token"></a> [tfe\_token](#input\_tfe\_token) | The API token for authenticating to Terraform Enterprise | `string` | n/a | yes |
+| <a name="input_vsphere_config"></a> [vsphere\_config](#input\_vsphere\_config) | Configuration for vSphere environments | <pre>object({<br/>    enabled     = bool<br/>    datacenter  = string<br/>    cluster     = string<br/>    datastore   = string<br/>    network     = string<br/>    folder_path = string<br/>  })</pre> | <pre>{<br/>  "cluster": "",<br/>  "datacenter": "",<br/>  "datastore": "",<br/>  "enabled": false,<br/>  "folder_path": "",<br/>  "network": ""<br/>}</pre> | no |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| <a name="output_admin_project_ids"></a> [admin\_project\_ids](#output\_admin\_project\_ids) | Map of admin project names to their IDs |
+| <a name="output_admin_team_id"></a> [admin\_team\_id](#output\_admin\_team\_id) | The ID of the admin team |
+| <a name="output_platform_variable_sets"></a> [platform\_variable\_sets](#output\_platform\_variable\_sets) | IDs of platform-specific variable sets |
+| <a name="output_team_ids"></a> [team\_ids](#output\_team\_ids) | Map of team names to their team IDs |
+| <a name="output_team_project_ids"></a> [team\_project\_ids](#output\_team\_project\_ids) | Map of team names to their project IDs for each environment |
+| <a name="output_workspace_counts"></a> [workspace\_counts](#output\_workspace\_counts) | Number of workspaces created for each team |
+| <a name="output_workspace_ids"></a> [workspace\_ids](#output\_workspace\_ids) | Map of team names to their workspace IDs | 

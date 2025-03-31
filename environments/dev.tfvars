@@ -31,7 +31,7 @@ vsphere_config = {
 
 aws_config = {
   enabled     = true
-  region      = "us-west-2"
+  region      = "ap-southeast-2"
   account_id  = "123456789012"
   vpc_id      = "vpc-dev0123456789abcdef"
   subnet_ids  = ["subnet-dev0123456789abcdef0", "subnet-dev0123456789abcdef1"]
