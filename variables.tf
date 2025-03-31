@@ -231,20 +231,19 @@ variable "sso_team_membership_attribute" {
 }
 
 variable "sso_configuration" {
-  description = "Configuration for the SSO provider integration"
+  description = "Configuration for the Keycloak SSO provider integration"
   type = object({
     provider_type = string
     
-    # Optional Okta configuration
-    okta_metadata_url = optional(string)
+    # Keycloak configuration
+    keycloak_metadata_url = optional(string)
+    keycloak_client_id = optional(string)
+    keycloak_realm = optional(string)
     
-    # Optional Azure AD configuration
-    azure_ad_metadata_url = optional(string)
-    
-    # Optional Generic SAML configuration
-    saml_idp_metadata = optional(string)
-    saml_sso_url      = optional(string)
-    saml_certificate  = optional(string)
+    # Red Hat Keycloak configuration
+    keycloak_redhat_metadata_url = optional(string)
+    keycloak_redhat_client_id = optional(string)
+    keycloak_redhat_realm = optional(string)
   })
   
   default = {
@@ -252,32 +251,31 @@ variable "sso_configuration" {
   }
 
   validation {
-    condition     = contains(["none", "okta", "azure_ad", "generic_saml"], var.sso_configuration.provider_type)
-    error_message = "Provider type must be one of: 'none', 'okta', 'azure_ad', 'generic_saml'."
+    condition     = contains(["none", "keycloak", "keycloak_redhat"], var.sso_configuration.provider_type)
+    error_message = "Provider type must be one of: 'none', 'keycloak', 'keycloak_redhat'."
   }
   
   validation {
-    condition     = var.sso_configuration.provider_type != "okta" || var.sso_configuration.okta_metadata_url != null
-    error_message = "When provider_type is 'okta', okta_metadata_url must be provided."
-  }
-  
-  validation {
-    condition     = var.sso_configuration.provider_type != "azure_ad" || var.sso_configuration.azure_ad_metadata_url != null
-    error_message = "When provider_type is 'azure_ad', azure_ad_metadata_url must be provided."
-  }
-  
-  validation {
-    condition     = var.sso_configuration.provider_type != "generic_saml" || (
-                     var.sso_configuration.saml_idp_metadata != null &&
-                     var.sso_configuration.saml_sso_url != null &&
-                     var.sso_configuration.saml_certificate != null
+    condition     = var.sso_configuration.provider_type != "keycloak" || (
+                     var.sso_configuration.keycloak_metadata_url != null &&
+                     var.sso_configuration.keycloak_client_id != null &&
+                     var.sso_configuration.keycloak_realm != null
                    )
-    error_message = "When provider_type is 'generic_saml', all of saml_idp_metadata, saml_sso_url, and saml_certificate must be provided."
+    error_message = "When provider_type is 'keycloak', all of keycloak_metadata_url, keycloak_client_id, and keycloak_realm must be provided."
+  }
+  
+  validation {
+    condition     = var.sso_configuration.provider_type != "keycloak_redhat" || (
+                     var.sso_configuration.keycloak_redhat_metadata_url != null &&
+                     var.sso_configuration.keycloak_redhat_client_id != null &&
+                     var.sso_configuration.keycloak_redhat_realm != null
+                   )
+    error_message = "When provider_type is 'keycloak_redhat', all of keycloak_redhat_metadata_url, keycloak_redhat_client_id, and keycloak_redhat_realm must be provided."
   }
 }
 
 variable "sso_team_mappings" {
-  description = "Map of teams to create with SSO Team IDs for Active Directory group mapping"
+  description = "Map of teams to create with SSO Team IDs for Keycloak role mapping"
   type = map(object({
     name        = string
     sso_team_id = string
