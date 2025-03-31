@@ -59,8 +59,8 @@ variable "vsphere_config" {
     folder_path = string
   })
   default = {
-    enabled     = false
-    datacenter  = ""
+    enabled     = true
+    datacenter  = "dc-01"
     cluster     = ""
     datastore   = ""
     network     = ""
@@ -87,19 +87,15 @@ variable "azure_config" {
   description = "Configuration for Azure environments"
   type = object({
     enabled           = bool
-    subscription_id   = string
-    resource_group    = string
-    location          = string
-    virtual_network   = string
-    subnet_id         = string
+    location          = optional(string, "australiaeast")
+    subscription_id   = optional(string)
+    resource_group    = optional(string)
+    virtual_network   = optional(string)
+    subnet_id         = optional(string)
   })
   default = {
-    enabled           = false
-    subscription_id   = ""
-    resource_group    = ""
-    location          = "eastus"
-    virtual_network   = ""
-    subnet_id         = ""
+    enabled = false
+    # Optional fields don't need defaults in this block
   }
 }
 
