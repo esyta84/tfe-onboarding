@@ -73,16 +73,13 @@ variable "aws_config" {
   type = object({
     enabled     = bool
     region      = string
-    account_id  = string
-    vpc_id      = string
-    subnet_ids  = list(string)
+    account_id  = optional(string)
+    vpc_id      = optional(string)
+    subnet_ids  = optional(list(string), [])
   })
   default = {
     enabled     = false
     region      = "ap-southeast-2"
-    account_id  = ""
-    vpc_id      = ""
-    subnet_ids  = []
   }
 }
 
@@ -292,4 +289,4 @@ locals {
   
   # Use subnet_ids if provided, otherwise empty list
   aws_subnet_ids = var.aws_config.subnet_ids != null ? var.aws_config.subnet_ids : []
-} 
+}
