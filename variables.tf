@@ -281,4 +281,15 @@ variable "sso_team_mappings" {
     sso_team_id = string
   }))
   default = {}
+}
+
+locals {
+  # Only use account_id when provided
+  aws_account_id = var.aws_config.account_id != null ? var.aws_config.account_id : ""
+  
+  # Only use vpc_id when provided
+  aws_vpc_id = var.aws_config.vpc_id != null ? var.aws_config.vpc_id : ""
+  
+  # Use subnet_ids if provided, otherwise empty list
+  aws_subnet_ids = var.aws_config.subnet_ids != null ? var.aws_config.subnet_ids : []
 } 
