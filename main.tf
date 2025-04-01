@@ -87,9 +87,9 @@ module "team_onboarding" {
   
   # Pass platform variable set IDs
   platform_varset_ids = {
-    vsphere = contains(each.value.platforms, "vsphere") ? module.platform_varsets.vsphere_varset_id : null
-    aws     = contains(each.value.platforms, "aws") ? module.platform_varsets.aws_varset_id : null
-    azure   = contains(each.value.platforms, "azure") ? module.platform_varsets.azure_varset_id : null
+    vsphere = contains(each.value.platforms, "vsphere") ? (module.platform_varsets.vsphere_varset_id != null ? module.platform_varsets.vsphere_varset_id : "") : ""
+    aws     = contains(each.value.platforms, "aws") ? (module.platform_varsets.aws_varset_id != null ? module.platform_varsets.aws_varset_id : "") : ""
+    azure   = contains(each.value.platforms, "azure") ? (module.platform_varsets.azure_varset_id != null ? module.platform_varsets.azure_varset_id : "") : ""
   }
   
   # Pass team-specific platform configurations per environment

@@ -41,7 +41,11 @@ variable "platforms" {
 variable "platform_varset_ids" {
   description = "Map of platform variable set IDs"
   type        = map(string)
-  default     = {}
+  default     = {
+    vsphere = null
+    aws     = null
+    azure   = null
+  }
 }
 
 variable "aws_team_config" {
