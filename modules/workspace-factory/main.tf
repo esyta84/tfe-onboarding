@@ -33,48 +33,39 @@ locals {
     ]
   ])
 
-  # Default AWS config structure to use when no team config is provided
-  default_aws_config = {
+  # Use team-specific per-environment AWS configs if available
+  effective_aws_configs = var.aws_team_config != null ? var.aws_team_config : {
     for env in var.environments : env => {
-      region     = "ap-southeast-2"
-      account_id = ""
-      vpc_id     = ""
+      region     = "ap-southeast-2" # Default to AP Southeast 2 if no team or global config
+      account_id = null
+      vpc_id     = null
       subnet_ids = []
     }
   }
   
-  # Use team-specific per-environment AWS configs if available
-  effective_aws_configs = var.aws_team_config != null ? var.aws_team_config : local.default_aws_config
-  
-  # Default Azure config structure to use when no team config is provided
-  default_azure_config = {
+  # Use team-specific per-environment Azure configs if available
+  effective_azure_configs = var.azure_team_config != null ? var.azure_team_config : {
     for env in var.environments : env => {
-      location       = "australiaeast"
-      subscription_id = ""
-      resource_group = ""
-      vnet_name      = ""
+      location       = "australiaeast" # Default to Australia East if no team or global config
+      subscription_id = null
+      resource_group = null
+      vnet_name      = null
       subnet_names   = []
     }
   }
   
-  # Use team-specific per-environment Azure configs if available
-  effective_azure_configs = var.azure_team_config != null ? var.azure_team_config : local.default_azure_config
-  
-  # Default vSphere config structure to use when no team config is provided
-  default_vsphere_config = {
+  # Use team-specific per-environment vSphere configs if available
+  effective_vsphere_configs = var.vsphere_team_config != null ? var.vsphere_team_config : {
     for env in var.environments : env => {
-      vsphere_server     = ""
-      datacenter         = ""
-      compute_cluster    = ""
-      datastore          = ""
-      resource_pool      = ""
-      folder             = ""
-      network            = ""
+      vsphere_server     = null
+      datacenter         = null
+      compute_cluster    = null
+      datastore          = null
+      resource_pool      = null
+      folder             = null
+      network            = null
     }
   }
-  
-  # Use team-specific per-environment vSphere configs if available
-  effective_vsphere_configs = var.vsphere_team_config != null ? var.vsphere_team_config : local.default_vsphere_config
 }
 
 ###################################################
@@ -155,20 +146,14 @@ resource "tfe_variable" "platform_name" {
 # Add a variable for operation timeout, since we can't set it directly on the workspace
 resource "tfe_variable" "operation_timeout" {
   for_each = {
-    for key, workspace in local.workspaces : key => {
-      workspace_id = workspace.id
-      env = local.env_platform_map[key].env
-      timeout = try(
-        var.environment_configs[local.env_platform_map[key].env].run_operation_timeout,
-        null
-      )
-    }
-    if try(var.environment_configs[local.env_platform_map[key].env].run_operation_timeout, null) != null
+    for key, workspace in local.workspaces :
+    key => workspace
+    if lookup(lookup(var.environment_configs, local.env_platform_map[key].env, {}), "run_operation_timeout", null) != null
   }
   
-  workspace_id = each.value.workspace_id
+  workspace_id = each.value.id
   key          = "TFE_RUN_OPERATION_TIMEOUT"
-  value        = tostring(each.value.timeout)
+  value        = tostring(lookup(var.environment_configs[local.env_platform_map[each.key].env], "run_operation_timeout", 0))
   category     = "env"
   description  = "Maximum duration for Terraform operations in minutes"
   sensitive    = false
@@ -183,14 +168,15 @@ resource "tfe_variable" "aws_region" {
   for_each = {
     for key, combo in local.env_platform_map :
     key => combo
-    if contains(var.platforms, "aws") && 
-       combo.platform == "aws" && 
-       lookup(local.effective_aws_configs, combo.env, {}) != {}
+    if contains(var.platforms, "aws") && combo.platform == "aws" && lookup(local.effective_aws_configs, combo.env, null) != null
   }
   
   workspace_id = tfe_workspace.workspaces[each.key].id
   key          = "AWS_REGION"
-  value        = lookup(lookup(local.effective_aws_configs, each.value.env, {}), "region", "ap-southeast-2")
+  value        = try(
+    local.effective_aws_configs[each.value.env].region,
+    "ap-southeast-2"
+  )
   category     = "env"
   description  = "AWS region for resources in ${each.value.env} environment"
 }
@@ -199,14 +185,15 @@ resource "tfe_variable" "aws_account_id" {
   for_each = {
     for key, combo in local.env_platform_map :
     key => combo
-    if contains(var.platforms, "aws") && 
-       combo.platform == "aws" && 
-       lookup(local.effective_aws_configs, combo.env, {}) != {}
+    if contains(var.platforms, "aws") && combo.platform == "aws" && lookup(local.effective_aws_configs, combo.env, null) != null
   }
   
   workspace_id = tfe_workspace.workspaces[each.key].id
   key          = "TF_VAR_aws_account_id"
-  value        = lookup(lookup(local.effective_aws_configs, each.value.env, {}), "account_id", "")
+  value        = try(
+    local.effective_aws_configs[each.value.env].account_id,
+    ""
+  )
   category     = "env"
   description  = "AWS account ID for ${each.value.env} environment"
 }
@@ -221,7 +208,10 @@ resource "tfe_variable" "azure_location" {
   
   workspace_id = tfe_workspace.workspaces[each.key].id
   key          = "ARM_LOCATION"
-  value        = lookup(lookup(local.effective_azure_configs, each.value.env, {}), "location", "australiaeast")
+  value        = try(
+    local.effective_azure_configs[each.value.env].location,
+    "australiaeast"
+  )
   category     = "env"
   description  = "Azure location for resources in ${each.value.env} environment"
 }
@@ -235,7 +225,10 @@ resource "tfe_variable" "azure_subscription_id" {
   
   workspace_id = tfe_workspace.workspaces[each.key].id
   key          = "ARM_SUBSCRIPTION_ID"
-  value        = lookup(lookup(local.effective_azure_configs, each.value.env, {}), "subscription_id", "")
+  value        = try(
+    local.effective_azure_configs[each.value.env].subscription_id,
+    ""
+  )
   category     = "env"
   description  = "Azure subscription ID for ${each.value.env} environment"
 }
@@ -249,7 +242,10 @@ resource "tfe_variable" "azure_resource_group" {
   
   workspace_id = tfe_workspace.workspaces[each.key].id
   key          = "TF_VAR_azure_resource_group"
-  value        = lookup(lookup(local.effective_azure_configs, each.value.env, {}), "resource_group", "")
+  value        = try(
+    local.effective_azure_configs[each.value.env].resource_group,
+    ""
+  )
   category     = "env"
   description  = "Azure resource group for ${each.value.env} environment"
 }
@@ -264,7 +260,10 @@ resource "tfe_variable" "vsphere_server" {
   
   workspace_id = tfe_workspace.workspaces[each.key].id
   key          = "VSPHERE_SERVER"
-  value        = lookup(lookup(local.effective_vsphere_configs, each.value.env, {}), "vsphere_server", "")
+  value        = try(
+    local.effective_vsphere_configs[each.value.env].vsphere_server,
+    ""
+  )
   category     = "env"
   description  = "vSphere server for ${each.value.env} environment"
 }
