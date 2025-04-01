@@ -148,7 +148,7 @@ resource "tfe_variable" "operation_timeout" {
   for_each = {
     for key, workspace in local.workspaces :
     key => workspace
-    if lookup(lookup(var.environment_configs, local.env_platform_map[key].env, {}), "run_operation_timeout", null) != null
+    if lookup(var.environment_configs, local.env_platform_map[key].env, {}) != {} && lookup(var.environment_configs[local.env_platform_map[key].env], "run_operation_timeout", null) != null
   }
   
   workspace_id = each.value.id
@@ -272,7 +272,7 @@ resource "tfe_variable" "vsphere_datacenter" {
   for_each = {
     for key, combo in local.env_platform_map :
     key => combo
-    if contains(var.platforms, "vsphere") && combo.platform == "vsphere" && lookup(local.effective_vsphere_configs, combo.env, null) != null
+    if contains(var.platforms, "vsphere") && combo.platform == "vsphere" && lookup(local.effective_vsphere_configs, combo.env, {}) != {}
   }
   
   workspace_id = tfe_workspace.workspaces[each.key].id
@@ -286,12 +286,12 @@ resource "tfe_variable" "vsphere_compute_cluster" {
   for_each = {
     for key, combo in local.env_platform_map :
     key => combo
-    if contains(var.platforms, "vsphere") && combo.platform == "vsphere" && lookup(local.effective_vsphere_configs, combo.env, null) != null
+    if contains(var.platforms, "vsphere") && combo.platform == "vsphere" && lookup(local.effective_vsphere_configs, combo.env, {}) != {}
   }
   
   workspace_id = tfe_workspace.workspaces[each.key].id
   key          = "TF_VAR_vsphere_compute_cluster"
-  value        = lookup(lookup(local.effective_vsphere_configs, each.value.env, {}), "compute_cluster", "")
+  value        = lookup(lookup(local.effective_vsphere_configs, each.value.env, {}), "cluster", "")
   category     = "env"
   description  = "vSphere compute cluster for ${each.value.env} environment"
 } 
