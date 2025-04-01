@@ -155,15 +155,20 @@ resource "tfe_variable" "platform_name" {
 # Add a variable for operation timeout, since we can't set it directly on the workspace
 resource "tfe_variable" "operation_timeout" {
   for_each = {
-    for key, workspace in local.workspaces :
-    key => workspace
-    if lookup(var.environment_configs, local.env_platform_map[key].env, {}) != {} && 
-       lookup(lookup(var.environment_configs, local.env_platform_map[key].env, {}), "run_operation_timeout", null) != null
+    for key, workspace in local.workspaces : key => {
+      workspace_id = workspace.id
+      env = local.env_platform_map[key].env
+      timeout = try(
+        var.environment_configs[local.env_platform_map[key].env].run_operation_timeout,
+        null
+      )
+    }
+    if try(var.environment_configs[local.env_platform_map[key].env].run_operation_timeout, null) != null
   }
   
-  workspace_id = each.value.id
+  workspace_id = each.value.workspace_id
   key          = "TFE_RUN_OPERATION_TIMEOUT"
-  value        = tostring(lookup(lookup(var.environment_configs, local.env_platform_map[each.key].env, {}), "run_operation_timeout", 0))
+  value        = tostring(each.value.timeout)
   category     = "env"
   description  = "Maximum duration for Terraform operations in minutes"
   sensitive    = false
