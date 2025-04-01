@@ -2,6 +2,7 @@
 tfe_hostname     = "app.terraform.io"
 # tfe_token      = "YOUR_TFE_TOKEN" # Never store sensitive values in version control
 tfe_organization = "your-organization-name"
+tfe_org_email    = "admin@example.com" # Email address for the TFE organization
 
 # Admin Team Configuration
 admin_team = {
@@ -120,19 +121,27 @@ teams = {
 aws_config = {
   enabled     = true
   region      = "ap-southeast-2" # Sydney region as the global default
-  # Other fields are removed as they should be specified per team/environment
+  account_id  = "" # Required field in aws_config object
+  vpc_id      = "" # Required field in aws_config object
+  subnet_ids  = [] # Required field in aws_config object
 }
 
 azure_config = {
   enabled         = true
   location        = "australiaeast" # Default location for Azure resources
-  # Other fields removed as they should be specified per team/environment
+  subscription_id = "" # Required field in azure_config object
+  resource_group  = "" # Required field in azure_config object
+  virtual_network = "" # Required field in azure_config object
+  subnet_id       = "" # Required field in azure_config object
 }
 
 vsphere_config = {
   enabled     = true
   datacenter  = "dc-01" # Default datacenter
-  # Other fields removed as they should be specified per team/environment
+  cluster     = "" # Required field in vsphere_config object
+  datastore   = "" # Required field in vsphere_config object
+  network     = "" # Required field in vsphere_config object
+  folder_path = "" # Required field in vsphere_config object
 }
 
 # Custom Environment Configurations (optional, defaults will be used if not specified)

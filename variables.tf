@@ -280,13 +280,3 @@ locals {
   # Use subnet_ids if provided, otherwise empty list
   aws_subnet_ids = var.aws_config.subnet_ids != null ? var.aws_config.subnet_ids : []
 }
-
-# Using any type can lead to type inference issues
-variable "flexible_map" {
-  type = map(any)
-  default = {
-    string_value = "text",
-    number_value = 42,
-    bool_value   = true
-  }
-}

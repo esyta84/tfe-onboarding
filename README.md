@@ -95,14 +95,12 @@ teams/app-x/
 ├── workspaces/                   # Environment-specific workspaces
 │   ├── dev/                      # Development environment
 │   │   ├── main.tf               # Dev-specific resources
-│   │   ├── variables.tf          # Dev-specific variables
-│   │   └── outputs.tf            # Dev-specific outputs
+│   │   └── variables.tf          # Dev-specific variables
 │   ├── preprod/                  # Similar structure for pre-production
 │   └── prod/                     # Similar structure for production
 └── platform-config/              # Platform-specific configurations
     ├── aws.tf                    # AWS-specific resources
-    ├── azure.tf                  # Azure-specific resources
-    └── vsphere.tf                # vSphere-specific resources
+    └── variables.tf              # Platform configuration variables
 ```
 
 To use this example, copy the structure for your new team:

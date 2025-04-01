@@ -5,10 +5,11 @@ terraform {
       source  = "hashicorp/tfe"
       version = "~> 0.64.0"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.5.0"
-    }
+    # Removed unused random provider - uncomment if needed for future requirements
+    # random = {
+    #   source  = "hashicorp/random"
+    #   version = "~> 3.5.0"
+    # }
   }
 }
 
@@ -17,5 +18,6 @@ provider "tfe" {
   token    = var.tfe_token
 }
 
-# Configure additional providers for potential utility functions
-provider "random" {} 
+# Provider declarations should only be included if used in the codebase
+# Uncomment if random values are needed in the future
+# provider "random" {} 
