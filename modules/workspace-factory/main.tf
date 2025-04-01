@@ -272,12 +272,15 @@ resource "tfe_variable" "vsphere_datacenter" {
   for_each = {
     for key, combo in local.env_platform_map :
     key => combo
-    if contains(var.platforms, "vsphere") && combo.platform == "vsphere" && lookup(local.effective_vsphere_configs, combo.env, {}) != {}
+    if contains(var.platforms, "vsphere") && combo.platform == "vsphere" && lookup(local.effective_vsphere_configs, combo.env, null) != null
   }
   
   workspace_id = tfe_workspace.workspaces[each.key].id
   key          = "TF_VAR_vsphere_datacenter"
-  value        = lookup(lookup(local.effective_vsphere_configs, each.value.env, {}), "datacenter", "")
+  value        = try(
+    local.effective_vsphere_configs[each.value.env].datacenter,
+    ""
+  )
   category     = "env"
   description  = "vSphere datacenter for ${each.value.env} environment"
 }
@@ -286,12 +289,15 @@ resource "tfe_variable" "vsphere_compute_cluster" {
   for_each = {
     for key, combo in local.env_platform_map :
     key => combo
-    if contains(var.platforms, "vsphere") && combo.platform == "vsphere" && lookup(local.effective_vsphere_configs, combo.env, {}) != {}
+    if contains(var.platforms, "vsphere") && combo.platform == "vsphere" && lookup(local.effective_vsphere_configs, combo.env, null) != null
   }
   
   workspace_id = tfe_workspace.workspaces[each.key].id
   key          = "TF_VAR_vsphere_compute_cluster"
-  value        = lookup(lookup(local.effective_vsphere_configs, each.value.env, {}), "cluster", "")
+  value        = try(
+    local.effective_vsphere_configs[each.value.env].cluster,
+    ""
+  )
   category     = "env"
   description  = "vSphere compute cluster for ${each.value.env} environment"
 } 
