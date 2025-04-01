@@ -77,33 +77,43 @@ locals {
   aws_environments     = contains(var.platforms, "aws") ? toset(var.environments) : toset([])
   azure_environments   = contains(var.platforms, "azure") ? toset(var.environments) : toset([])
   
-  # Check if varset IDs are provided - we can't create associations without them
-  has_vsphere_varset = var.platform_varset_ids["vsphere"] != null && var.platform_varset_ids["vsphere"] != ""
-  has_aws_varset     = var.platform_varset_ids["aws"] != null && var.platform_varset_ids["aws"] != ""
-  has_azure_varset   = var.platform_varset_ids["azure"] != null && var.platform_varset_ids["azure"] != ""
+  # Make a map of platform to environments that can be used safely at plan time
+  platform_environments = {
+    "vsphere" = local.vsphere_environments
+    "aws"     = local.aws_environments
+    "azure"   = local.azure_environments
+  }
+  
+  # Environment/platform combinations for variable set associations
+  # This only creates associations for platforms that:
+  # 1. Are requested by the team AND
+  # 2. Have a non-empty variable set ID specified
+  vsphere_varset_environments = length(local.vsphere_environments) > 0 && lookup(var.platform_varset_ids, "vsphere", "") != "" ? local.vsphere_environments : []
+  aws_varset_environments = length(local.aws_environments) > 0 && lookup(var.platform_varset_ids, "aws", "") != "" ? local.aws_environments : []
+  azure_varset_environments = length(local.azure_environments) > 0 && lookup(var.platform_varset_ids, "azure", "") != "" ? local.azure_environments : []
 }
 
-# Associate the vSphere variable set with relevant projects if vSphere is enabled
+# Associate the vSphere variable set with relevant projects if vSphere is enabled and varset is provided
 resource "tfe_project_variable_set" "vsphere_varset_association" {
-  for_each = local.has_vsphere_varset ? local.vsphere_environments : toset([])
+  for_each = toset(local.vsphere_varset_environments)
   
-  variable_set_id = var.platform_varset_ids["vsphere"]
+  variable_set_id = lookup(var.platform_varset_ids, "vsphere", "")
   project_id      = tfe_project.team_projects[each.value].id
 }
 
-# Associate the AWS variable set with relevant projects if AWS is enabled
+# Associate the AWS variable set with relevant projects if AWS is enabled and varset is provided
 resource "tfe_project_variable_set" "aws_varset_association" {
-  for_each = local.has_aws_varset ? local.aws_environments : toset([])
+  for_each = toset(local.aws_varset_environments)
   
-  variable_set_id = var.platform_varset_ids["aws"]
+  variable_set_id = lookup(var.platform_varset_ids, "aws", "")
   project_id      = tfe_project.team_projects[each.value].id
 }
 
-# Associate the Azure variable set with relevant projects if Azure is enabled
+# Associate the Azure variable set with relevant projects if Azure is enabled and varset is provided
 resource "tfe_project_variable_set" "azure_varset_association" {
-  for_each = local.has_azure_varset ? local.azure_environments : toset([])
+  for_each = toset(local.azure_varset_environments)
   
-  variable_set_id = var.platform_varset_ids["azure"]
+  variable_set_id = lookup(var.platform_varset_ids, "azure", "")
   project_id      = tfe_project.team_projects[each.value].id
 }
 
