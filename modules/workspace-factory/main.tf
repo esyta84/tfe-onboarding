@@ -19,8 +19,8 @@ locals {
     "${combo.env}-${combo.platform}" => combo
   }
 
-  # Create flattened team variables for all workspaces
-  workspace_vars = flatten([
+  # Create a flattened list of all team variables for each workspace key
+  team_vars_flattened = flatten([
     for key, combo in local.env_platform_map : [
       for var_key, var_value in var.team_variables : {
         workspace_key = key
@@ -29,11 +29,17 @@ locals {
       }
     ]
   ])
+  
+  # Create a map for team vars to ensure unique for_each keys
+  team_vars_map = {
+    for item in local.team_vars_flattened : 
+    "${item.workspace_key}-${item.var_key}" => item
+  }
 
   # Use team-specific per-environment AWS configs if available
   effective_aws_configs = var.aws_team_config != null ? var.aws_team_config : {
     for env in var.environments : env => {
-      region     = "ap-southeast-2" # Default to AP Southeast 2 if no team or global config
+      region     = "ap-southeast-2"
       account_id = null
       vpc_id     = null
       subnet_ids = []
@@ -43,7 +49,7 @@ locals {
   # Use team-specific per-environment Azure configs if available
   effective_azure_configs = var.azure_team_config != null ? var.azure_team_config : {
     for env in var.environments : env => {
-      location       = "australiaeast" # Default to Australia East if no team or global config
+      location       = "australiaeast"
       subscription_id = null
       resource_group = null
       vnet_name      = null
@@ -56,7 +62,7 @@ locals {
     for env in var.environments : env => {
       vsphere_server     = null
       datacenter         = null
-      compute_cluster    = null
+      cluster            = null  # Note: using 'cluster' instead of 'compute_cluster'
       datastore          = null
       resource_pool      = null
       folder             = null
@@ -104,9 +110,7 @@ resource "tfe_workspace" "workspaces" {
 
 # Add team-specific variables to each workspace
 resource "tfe_variable" "team_variables" {
-  for_each = {
-    for item in local.workspace_vars : "${item.workspace_key}-${item.var_key}" => item
-  }
+  for_each = local.team_vars_map
   
   workspace_id = tfe_workspace.workspaces[each.value.workspace_key].id
   key          = each.value.var_key
