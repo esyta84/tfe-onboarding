@@ -33,39 +33,48 @@ locals {
     ]
   ])
 
-  # Use team-specific per-environment AWS configs if available
-  effective_aws_configs = var.aws_team_config != null ? var.aws_team_config : {
+  # Default AWS config structure to use when no team config is provided
+  default_aws_config = {
     for env in var.environments : env => {
-      region     = "ap-southeast-2" # Default to AP Southeast 2 if no team or global config
-      account_id = null
-      vpc_id     = null
+      region     = "ap-southeast-2"
+      account_id = ""
+      vpc_id     = ""
       subnet_ids = []
     }
   }
   
-  # Use team-specific per-environment Azure configs if available
-  effective_azure_configs = var.azure_team_config != null ? var.azure_team_config : {
+  # Use team-specific per-environment AWS configs if available
+  effective_aws_configs = var.aws_team_config != null ? var.aws_team_config : local.default_aws_config
+  
+  # Default Azure config structure to use when no team config is provided
+  default_azure_config = {
     for env in var.environments : env => {
-      location       = "australiaeast" # Default to Australia East if no team or global config
-      subscription_id = null
-      resource_group = null
-      vnet_name      = null
+      location       = "australiaeast"
+      subscription_id = ""
+      resource_group = ""
+      vnet_name      = ""
       subnet_names   = []
     }
   }
   
-  # Use team-specific per-environment vSphere configs if available
-  effective_vsphere_configs = var.vsphere_team_config != null ? var.vsphere_team_config : {
+  # Use team-specific per-environment Azure configs if available
+  effective_azure_configs = var.azure_team_config != null ? var.azure_team_config : local.default_azure_config
+  
+  # Default vSphere config structure to use when no team config is provided
+  default_vsphere_config = {
     for env in var.environments : env => {
-      vsphere_server     = null
-      datacenter         = null
-      compute_cluster    = null
-      datastore          = null
-      resource_pool      = null
-      folder             = null
-      network            = null
+      vsphere_server     = ""
+      datacenter         = ""
+      compute_cluster    = ""
+      datastore          = ""
+      resource_pool      = ""
+      folder             = ""
+      network            = ""
     }
   }
+  
+  # Use team-specific per-environment vSphere configs if available
+  effective_vsphere_configs = var.vsphere_team_config != null ? var.vsphere_team_config : local.default_vsphere_config
 }
 
 ###################################################
@@ -148,12 +157,13 @@ resource "tfe_variable" "operation_timeout" {
   for_each = {
     for key, workspace in local.workspaces :
     key => workspace
-    if lookup(lookup(var.environment_configs, local.env_platform_map[key].env, {}), "run_operation_timeout", null) != null
+    if lookup(var.environment_configs, local.env_platform_map[key].env, {}) != {} && 
+       lookup(lookup(var.environment_configs, local.env_platform_map[key].env, {}), "run_operation_timeout", null) != null
   }
   
   workspace_id = each.value.id
   key          = "TFE_RUN_OPERATION_TIMEOUT"
-  value        = tostring(lookup(var.environment_configs[local.env_platform_map[each.key].env], "run_operation_timeout", 0))
+  value        = tostring(lookup(lookup(var.environment_configs, local.env_platform_map[each.key].env, {}), "run_operation_timeout", 0))
   category     = "env"
   description  = "Maximum duration for Terraform operations in minutes"
   sensitive    = false
@@ -168,7 +178,9 @@ resource "tfe_variable" "aws_region" {
   for_each = {
     for key, combo in local.env_platform_map :
     key => combo
-    if contains(var.platforms, "aws") && combo.platform == "aws" && lookup(local.effective_aws_configs, combo.env, null) != null
+    if contains(var.platforms, "aws") && 
+       combo.platform == "aws" && 
+       lookup(local.effective_aws_configs, combo.env, {}) != {}
   }
   
   workspace_id = tfe_workspace.workspaces[each.key].id
@@ -182,7 +194,9 @@ resource "tfe_variable" "aws_account_id" {
   for_each = {
     for key, combo in local.env_platform_map :
     key => combo
-    if contains(var.platforms, "aws") && combo.platform == "aws" && lookup(local.effective_aws_configs, combo.env, null) != null
+    if contains(var.platforms, "aws") && 
+       combo.platform == "aws" && 
+       lookup(local.effective_aws_configs, combo.env, {}) != {}
   }
   
   workspace_id = tfe_workspace.workspaces[each.key].id
