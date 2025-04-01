@@ -1,6 +1,6 @@
 output "project_ids" {
   description = "Map of environment names to their project IDs"
-  value       = { for env, project in tfe_project.team_projects : env => project.id }
+  value       = local.project_ids
 }
 
 output "team_varset_id" {

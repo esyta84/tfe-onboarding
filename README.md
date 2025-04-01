@@ -58,6 +58,30 @@ This separation of concerns follows HashiCorp's best practices for TFE organizat
 
 ## Usage
 
+This module follows standard Terraform usage patterns. The resources can be created and managed using standard Terraform workflow commands:
+
+```bash
+terraform init
+terraform plan -var-file="terraform.tfvars" -var="tfe_token=YOUR_TOKEN"
+terraform apply -var-file="terraform.tfvars" -var="tfe_token=YOUR_TOKEN"
+```
+
+### Important Note on Variable Set Associations
+
+Due to the way Terraform evaluates `for_each` expressions, applying the variable set associations with projects requires a two-step process:
+
+1. First, apply only the project resources:
+```bash
+terraform apply -var-file="terraform.tfvars" -var="tfe_token=YOUR_TOKEN" -target=module.team_onboarding.tfe_project.team_projects
+```
+
+2. Then, apply the entire configuration to create the variable set associations:
+```bash
+terraform apply -var-file="terraform.tfvars" -var="tfe_token=YOUR_TOKEN"
+```
+
+This two-step process is necessary because the variable set associations depend on resource attributes that are only known after the initial apply.
+
 ### Prerequisites
 
 - Terraform >= 1.0.0

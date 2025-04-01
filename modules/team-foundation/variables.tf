@@ -42,9 +42,9 @@ variable "platform_varset_ids" {
   description = "Map of platform variable set IDs"
   type        = map(string)
   default     = {
-    vsphere = null
-    aws     = null
-    azure   = null
+    vsphere = ""
+    aws     = ""
+    azure   = ""
   }
 }
 

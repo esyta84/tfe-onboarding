@@ -70,51 +70,50 @@ resource "tfe_variable" "team_name" {
 # Platform Variable Set Associations
 ###################################################
 
-# We need to restructure the for_each logic to use only known values at plan time
-locals {
-  # Create a map of all environment/platform combinations that need variable sets
-  vsphere_environments = contains(var.platforms, "vsphere") ? toset(var.environments) : toset([])
-  aws_environments     = contains(var.platforms, "aws") ? toset(var.environments) : toset([])
-  azure_environments   = contains(var.platforms, "azure") ? toset(var.environments) : toset([])
-  
-  # Make a map of platform to environments that can be used safely at plan time
-  platform_environments = {
-    "vsphere" = local.vsphere_environments
-    "aws"     = local.aws_environments
-    "azure"   = local.azure_environments
+# NOTE: Due to the design of Terraform's evaluation of for_each expressions,
+# the variable set associations need to be applied in a separate step.
+# This is because they depend on resource attributes that are only known after apply.
+# 
+# To apply this configuration:
+# 1. First apply the base resources: terraform apply -var tfe_token=your_token -target=tfe_project.team_projects
+# 2. Then apply the full configuration: terraform apply -var tfe_token=your_token
+#
+# The conditional creation of these associations depends on:
+# - The platforms enabled for this team
+# - The variable set IDs being provided
+# - The projects being successfully created
+
+# vSphere variable set associations
+resource "tfe_project_variable_set" "vsphere_varset" {
+  for_each = {
+    for env in var.environments : env => env
+    if contains(var.platforms, "vsphere") && var.platform_varset_ids["vsphere"] != ""
   }
   
-  # Environment/platform combinations for variable set associations
-  # This only creates associations for platforms that:
-  # 1. Are requested by the team AND
-  # 2. Have a non-empty variable set ID specified
-  vsphere_varset_environments = length(local.vsphere_environments) > 0 && lookup(var.platform_varset_ids, "vsphere", "") != "" ? local.vsphere_environments : []
-  aws_varset_environments = length(local.aws_environments) > 0 && lookup(var.platform_varset_ids, "aws", "") != "" ? local.aws_environments : []
-  azure_varset_environments = length(local.azure_environments) > 0 && lookup(var.platform_varset_ids, "azure", "") != "" ? local.azure_environments : []
+  variable_set_id = var.platform_varset_ids["vsphere"]
+  project_id      = tfe_project.team_projects[each.key].id
 }
 
-# Associate the vSphere variable set with relevant projects if vSphere is enabled and varset is provided
-resource "tfe_project_variable_set" "vsphere_varset_association" {
-  for_each = toset(local.vsphere_varset_environments)
+# AWS variable set associations
+resource "tfe_project_variable_set" "aws_varset" {
+  for_each = {
+    for env in var.environments : env => env
+    if contains(var.platforms, "aws") && var.platform_varset_ids["aws"] != ""
+  }
   
-  variable_set_id = lookup(var.platform_varset_ids, "vsphere", "")
-  project_id      = tfe_project.team_projects[each.value].id
+  variable_set_id = var.platform_varset_ids["aws"]
+  project_id      = tfe_project.team_projects[each.key].id
 }
 
-# Associate the AWS variable set with relevant projects if AWS is enabled and varset is provided
-resource "tfe_project_variable_set" "aws_varset_association" {
-  for_each = toset(local.aws_varset_environments)
+# Azure variable set associations
+resource "tfe_project_variable_set" "azure_varset" {
+  for_each = {
+    for env in var.environments : env => env
+    if contains(var.platforms, "azure") && var.platform_varset_ids["azure"] != ""
+  }
   
-  variable_set_id = lookup(var.platform_varset_ids, "aws", "")
-  project_id      = tfe_project.team_projects[each.value].id
-}
-
-# Associate the Azure variable set with relevant projects if Azure is enabled and varset is provided
-resource "tfe_project_variable_set" "azure_varset_association" {
-  for_each = toset(local.azure_varset_environments)
-  
-  variable_set_id = lookup(var.platform_varset_ids, "azure", "")
-  project_id      = tfe_project.team_projects[each.value].id
+  variable_set_id = var.platform_varset_ids["azure"]
+  project_id      = tfe_project.team_projects[each.key].id
 }
 
 # Create workspaces for this team
